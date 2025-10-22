@@ -47,6 +47,7 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         //buffer needs to be hashed
         //let mut hasher = Sha256::new();
         //hasher.update(&buffer);
+        //https://stackoverflow.com/questions/68694399/most-idiomatic-way-to-read-a-range-of-bytes-from-a-file
         file.read_exact(&mut buffer)?;
         //hasher.finalize();
         // fürs erste der name der Datei
@@ -153,8 +154,8 @@ mod tests {
 
     #[test]
     fn test_encrypt_aes_siv(){
-        let data = b"Example plaintext data to encrypt";
-        let encrypted = encrypt_with_aes_siv(data);
+        let data = b"TO ENCRYPT";
+        //TODO: Encrypt Test erweitern
     }
 
 }
