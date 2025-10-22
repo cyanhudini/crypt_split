@@ -26,11 +26,10 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
     /*
     die gechnkten dateien sollen in einen ordner gespeichert werden, der name des ordners ist eine uuid
     der user sollte den pfad angeben wo der ordner erstellt werden soll
-
-
     */
     let output_folder = Uuid::new_v4().to_string();
-    fs::create_dir_all(output_folder)?;
+    let output_folder_path = output_path.as_ref().join(output_folder);
+    fs::create_dir_all(&output_folder_path)?;
 
     let mut file = File::open(file_path.as_ref())?;
     let mut chunks: Vec<FileChunk> = Vec::new();
@@ -53,7 +52,7 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         // fürs erste der name der Datei
         
         //let chunk_name = format!("chunk_{}", index);
-        let chunk_path = output_path.as_ref().join(chunk_name);
+        let chunk_path = output_folder_path.join(chunk_name);
         // erstellen der Datei passiert erst nach dem Hashen
         let mut chunk_file = File::create(&chunk_path)?;
 
@@ -63,7 +62,7 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
             index,
             file_path: chunk_path,
             size: buffer.len(),
-            encrypted_data: encrypted_data,
+            encrypted_data: String::new(),
             hashed_data: String::new(),
             nonce: String::new(),
         });
@@ -116,10 +115,7 @@ mod tests {
         }*/
         let file_path = PathBuf::from("test/test_pdf.pdf");
         let output_path = PathBuf::from("test/output_chunks");
-        if Path::new(&output_path).exists() {
-            fs::remove_dir_all(&output_path).ok();
-        }
-
+        
         let result = split_file(file_path, output_path);
         assert!(result.is_ok());
         let chunks = result.unwrap();
