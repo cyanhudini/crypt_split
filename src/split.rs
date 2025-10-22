@@ -2,12 +2,19 @@ use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use sha2::{Digest, Sha256};
+use aes_siv::{
+    aead::{Aead, KeyInit, OsRng},
+    Aes256SivAead, Nonce
+};
+use uuid::Uuid;
+
 pub struct FileChunk {
     pub index: usize,
     pub file_path: PathBuf,
     pub size: usize,
     pub encrypted_data: String,
     pub hashed_data: String,
+    pub nonce: String,
 }
 
 const CHUNK_SIZE: usize = 4096;
@@ -22,26 +29,30 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
 
 
     */
-    fs::create_dir_all(output_path.as_ref())?;
+    let output_folder = Uuid::new_v4().to_string();
+    fs::create_dir_all(output_folder)?;
 
     let mut file = File::open(file_path.as_ref())?;
     let mut chunks: Vec<FileChunk> = Vec::new();
     let file_size = file.metadata()?.len() as usize;
     let mut index = 0;
     let mut bytes_red = 0;
-
+    //let output_folder = Uuid::new_v4().to_string();
     while bytes_red < file_size {
         let rest = file_size - bytes_red;
         let read_size = std::cmp::min(rest, CHUNK_SIZE);
 
         let mut buffer = vec![0u8; read_size];
+        let encrypted_data = encrypt_with_aes_siv(&buffer);
+        let chunk_name = hash_encrypted_data(&encrypted_data);
         //buffer needs to be hashed
-        let mut hasher = Sha256::new();
-        hasher.update(&buffer);
+        //let mut hasher = Sha256::new();
+        //hasher.update(&buffer);
         file.read_exact(&mut buffer)?;
         //hasher.finalize();
         // fürs erste der name der Datei
-        let chunk_name = format!("chunk_{}", index);
+        
+        //let chunk_name = format!("chunk_{}", index);
         let chunk_path = output_path.as_ref().join(chunk_name);
         // erstellen der Datei passiert erst nach dem Hashen
         let mut chunk_file = File::create(&chunk_path)?;
@@ -52,8 +63,9 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
             index,
             file_path: chunk_path,
             size: buffer.len(),
-            encrypted_data: String::new(),
+            encrypted_data: encrypted_data,
             hashed_data: String::new(),
+            nonce: String::new(),
         });
 
         index += 1;
@@ -62,22 +74,30 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
     Ok(chunks)
 }
 
-fn hash_encrypted_data(chunk: Vec<FileChunk>){
+fn encrypt_with_aes_siv(plain_data: &[u8]) -> String {
+    let key = Aes256SivAead::generate_key(&mut OsRng);
+    let cipher = Aes256SivAead::new(&key);
+    let nonce = Nonce::from_slice(b"any unique nonce"); // 16 bytes; unique per message
+    let encrypted_data = cipher.encrypt(nonce, plain_data.as_ref()).expect("encryption failure!");
+    println!("Encrypted data: {:?}", encrypted_data);
+    println!("Encrypted data (hex): {}", hex::encode(&encrypted_data));
+    hex::encode(encrypted_data)
+}
+
+fn hash_encrypted_data(chunk_data: &String) -> String {
 
 
     //let mut hasher = Sha256::new();
     //let mut hash_results: Vec<String> = Vec::new();
-    for c in chunk.iter(){
-        let mut hasher = Sha256::new();
-        //hasher.finalize();
-        hasher.update(&c.encrypted_data.as_bytes());
-        let hash_result = hasher.finalize();
-        let hash_string = format!("{:x}", hash_result);
-        println!("Hash of chunk {}", hash_string);
-        // fürs erste der name der Datei
+    let mut hasher = Sha256::new();
+    //hasher.finalize();
+    hasher.update(&chunk_data.as_bytes());
+    let hash_result = hasher.finalize();
+    let hash_string = format!("{:x}", hash_result);
+    println!("Hash of chunk {}", hash_string);
+    // fürs erste der name der Datei
+    hash_string
 
-
-    }
 
 }
 
@@ -109,13 +129,15 @@ mod tests {
     
     #[test]
     fn test_hash_chunk(){
-        let chunks = vec![
+        let mut chunks = vec![
             FileChunk {
                 index: 0,
                 file_path: PathBuf::from("chunk_0"),
                 size: 4096,
                 encrypted_data: String::from("exampleencrypted1"),
                 hashed_data: String::from("examplehash1"),
+
+                nonce: String::from("examplenonce1"),
             },
             FileChunk {
                 index: 1,
@@ -123,13 +145,20 @@ mod tests {
                 size: 4096,
                 encrypted_data: String::from("exampleencrypted2"),
                 hashed_data: String::from("examplehash2"),
+                nonce: String::from("examplenonce2"),
             },
         ];
-        hash_encrypted_data(chunks);
+        //hash_encrypted_data(&mut chunks);
         //TODO: Tests erweitern
 
     }
 
-
+    #[test]
+    fn test_encrypt_aes_siv(){
+        let data = b"Example plaintext data to encrypt";
+        let encrypted = encrypt_with_aes_siv(data);
+        println!("Encrypted data (hex): {}", encrypted);
+        assert!(!encrypted.is_empty());
+    }
 
 }
