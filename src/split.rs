@@ -14,6 +14,7 @@ pub struct FileChunk {
     pub size: usize,
     pub encrypted_data: String,
     pub nonce: String,
+    pub cloud_path: Option<String>,
 }
 
 const CHUNK_SIZE: usize = 4096;
@@ -63,6 +64,7 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
             size: buffer.len(),
             encrypted_data: encrypted_data,
             nonce: nonce,
+            cloud_path: None,
         });
 
         index += 1;
@@ -98,6 +100,9 @@ fn hash_encrypted_data(chunk_data: &String) -> String {
 
 }
 
+
+fn reconstruct_file(){}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -130,6 +135,7 @@ mod tests {
                 size: 4096,
                 encrypted_data: String::from("exampleencrypted1"),
                 nonce: String::from("examplenonce1"),
+                cloud_path: None,
             },
             FileChunk {
                 index: 1,
@@ -137,6 +143,7 @@ mod tests {
                 size: 4096,
                 encrypted_data: String::from("exampleencrypted2"),
                 nonce: String::from("examplenonce2"),
+                cloud_path: None,
             },
         ];
         //hash_encrypted_data(&mut chunks);
