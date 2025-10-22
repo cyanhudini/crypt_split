@@ -58,7 +58,7 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         chunk_file.write_all(&buffer)?;
         // TODO: metadaten index, filepath, size usw. sind nachher wichtig für Tabelle
         chunks.push(FileChunk {
-            index,
+            index: index,
             file_path: chunk_path,
             size: buffer.len(),
             encrypted_data: encrypted_data,
