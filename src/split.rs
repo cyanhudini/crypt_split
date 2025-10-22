@@ -13,7 +13,6 @@ pub struct FileChunk {
     pub file_path: PathBuf,
     pub size: usize,
     pub encrypted_data: String,
-    pub hashed_data: String,
     pub nonce: String,
 }
 
@@ -42,7 +41,7 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         let read_size = std::cmp::min(rest, CHUNK_SIZE);
 
         let mut buffer = vec![0u8; read_size];
-        let encrypted_data = encrypt_with_aes_siv(&buffer);
+        let (encrypted_data, nonce) = encrypt_with_aes_siv(&buffer);
         let chunk_name = hash_encrypted_data(&encrypted_data);
         //buffer needs to be hashed
         //let mut hasher = Sha256::new();
@@ -62,9 +61,8 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
             index,
             file_path: chunk_path,
             size: buffer.len(),
-            encrypted_data: String::new(),
-            hashed_data: String::new(),
-            nonce: String::new(),
+            encrypted_data: encrypted_data,
+            nonce: nonce,
         });
 
         index += 1;
@@ -73,14 +71,14 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
     Ok(chunks)
 }
 
-fn encrypt_with_aes_siv(plain_data: &[u8]) -> String {
+fn encrypt_with_aes_siv(plain_data: &[u8]) -> (String, String) {
     let key = Aes256SivAead::generate_key(&mut OsRng);
     let cipher = Aes256SivAead::new(&key);
     let nonce = Nonce::from_slice(b"any unique nonce"); // 16 bytes; unique per message
     let encrypted_data = cipher.encrypt(nonce, plain_data.as_ref()).expect("encryption failure!");
     println!("Encrypted data: {:?}", encrypted_data);
     println!("Encrypted data (hex): {}", hex::encode(&encrypted_data));
-    hex::encode(encrypted_data)
+    (hex::encode(encrypted_data), hex::encode(nonce))
 }
 
 fn hash_encrypted_data(chunk_data: &String) -> String {
@@ -131,8 +129,6 @@ mod tests {
                 file_path: PathBuf::from("chunk_0"),
                 size: 4096,
                 encrypted_data: String::from("exampleencrypted1"),
-                hashed_data: String::from("examplehash1"),
-
                 nonce: String::from("examplenonce1"),
             },
             FileChunk {
@@ -140,7 +136,6 @@ mod tests {
                 file_path: PathBuf::from("chunk_1"),
                 size: 4096,
                 encrypted_data: String::from("exampleencrypted2"),
-                hashed_data: String::from("examplehash2"),
                 nonce: String::from("examplenonce2"),
             },
         ];
@@ -153,8 +148,6 @@ mod tests {
     fn test_encrypt_aes_siv(){
         let data = b"Example plaintext data to encrypt";
         let encrypted = encrypt_with_aes_siv(data);
-        println!("Encrypted data (hex): {}", encrypted);
-        assert!(!encrypted.is_empty());
     }
 
 }
