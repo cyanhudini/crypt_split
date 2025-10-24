@@ -1,9 +1,5 @@
 use redis;
+use dotenv::dotenv;
 
-pub struct RedisDB {
-    client: redis::Client,
-}
 
-impl RedisDB {
-    
-}
+
