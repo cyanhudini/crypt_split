@@ -22,6 +22,9 @@ impl RedisClient {
         file_hash: &str,
         chunk_info: &FileData,
     ) -> redis::RedisResult<usize> {
+        // https://stackoverflow.com/questions/78003329/why-does-resultmap-err-behave-differently-when-using-or-return
+        // https://blog.ssanj.net/posts/2024-01-24-working-with-rust-result-part-10.html
+        // map_err da nicht möglihc SerdeError in RedisError umzuwandeln. daher muss das mapping selbst übnernommen werden
         let serialized = serde_json::to_string(&chunk_info.chunks).map_err(|e| {
             redis::RedisError::from((
                 redis::ErrorKind::TypeError,
@@ -37,6 +40,12 @@ impl RedisClient {
     pub fn delete_hkey(&mut self, file_hash: &str) -> RedisResult<usize> {
         let res = self.connection.del(file_hash)?;
         Ok(res)
+    }
+
+    pub fn get_hvalues(&mut self, file_name : &str) -> RedisResult<()>{
+        let res = self.connection.get(file_name);
+        Ok(())
+
     }
 }
 
@@ -58,17 +67,13 @@ mod tests {
 
         //let key = "test:set_key_value:1";
 
-        // create client
+
         let mut client = RedisClient::create_from_env().expect("Eoor beim Client Erstellen");
         let s_c_1 = serde_json::to_string(&chunk);
-        // set the value
+
         let res = client.set_hvalue("test:SSSS", &chunk).expect("hset failed");
-        // res is number of fields added (0 or 1)
+
         assert!(res >= 0);
 
-        // read raw JSON back directly from the connection and deserialize
-
-        // cleanup
-        //let _removed: usize = client.connection.del(key).expect("del failed");
     }
 }
