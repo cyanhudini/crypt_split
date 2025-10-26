@@ -7,12 +7,12 @@ use aes_siv::{
     Aes256SivAead, Nonce
 };
 use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 
+
+#[derive(Deserialize, Serialize, Debug)]
 pub struct FileChunk {
     pub index: usize,
-    pub file_path: PathBuf,
-    pub size: usize,
-    pub encrypted_data: String,
     pub nonce: String,
     pub cloud_path: Option<String>,
 }
@@ -61,9 +61,7 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         // TODO: metadaten index, filepath, size usw. sind nachher wichtig für Tabelle
         chunks.push(FileChunk {
             index: index,
-            file_path: chunk_path,
-            size: buffer.len(),
-            encrypted_data: encrypted_data,
+
             nonce: nonce,
             cloud_path: None,
         });
@@ -77,7 +75,7 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
 fn encrypt_with_aes_siv(plain_data: &[u8]) -> (String, String) {
     let key = Aes256SivAead::generate_key(&mut OsRng);
     let cipher = Aes256SivAead::new(&key);
-    let nonce = Nonce::from_slice(b"any unique nonce"); // 16 bytes; unique per message
+    let nonce = Nonce::from_slice(b"any unique nonce"); 
     let encrypted_data = cipher.encrypt(nonce, plain_data.as_ref()).expect("encryption failure!");
     println!("Encrypted data: {:?}", encrypted_data);
     println!("Encrypted data (hex): {}", hex::encode(&encrypted_data));
@@ -132,17 +130,13 @@ mod tests {
         let mut chunks = vec![
             FileChunk {
                 index: 0,
-                file_path: PathBuf::from("chunk_0"),
-                size: 4096,
-                encrypted_data: String::from("exampleencrypted1"),
+
                 nonce: String::from("examplenonce1"),
                 cloud_path: None,
             },
             FileChunk {
                 index: 1,
-                file_path: PathBuf::from("chunk_1"),
-                size: 4096,
-                encrypted_data: String::from("exampleencrypted2"),
+
                 nonce: String::from("examplenonce2"),
                 cloud_path: None,
             },
