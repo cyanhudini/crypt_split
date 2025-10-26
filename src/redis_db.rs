@@ -21,6 +21,48 @@ impl RedisClient {
         &mut self,
         file_hash: &str,
         chunk_info: &FileChunk,
-    ) -> redis::RedisResult<()> {}
+    ) -> redis::RedisResult<()> {
+        let serialized = serde_json::to_string(&chunk_info)
+            .map_err(|e| {
+                redis::RedisError::from((
+                    redis::ErrorKind::TypeError,
+                    "serde_json::to_string failed",
+                    e.to_string(),
+                ))
+            })?;
+        let field = chunk_info.index.to_string(); 
+        let _ = self.connection.hset(file_hash, field, serialized);
+        Ok(())
+    }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_set_key_value() {
+
+        let chunk = FileChunk {
+            index: 2,
+            nonce: String::from("nonce1234"),
+            cloud_path: Some(String::from("s3://bucket/aaa")),
+        };
+
+        //let key = "test:set_key_value:1";
+
+        // create client
+        let mut client = RedisClient::create_from_env().expect("Eoor beim Client Erstellen");
+        let s_c_1 = serde_json::to_string(&chunk);
+        // set the value
+        client.set_key_value(&String::from("test:SSSS"), &chunk);
+
+        // read raw JSON back directly from the connection and deserialize
+        
+
+        // cleanup
+        //let _removed: usize = client.connection.del(key).expect("del failed");
+    }
+}
