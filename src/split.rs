@@ -1,28 +1,32 @@
+use aes_siv::{
+    aead::{Aead, KeyInit, OsRng},
+    Aes256SivAead, Nonce,
+};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
-use sha2::{Digest, Sha256};
-use aes_siv::{
-    aead::{Aead, KeyInit, OsRng},
-    Aes256SivAead, Nonce
-};
 use uuid::Uuid;
-use serde::{Deserialize, Serialize};
-
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct FileChunk {
+pub struct FileChunkMetaData {
     pub index: usize,
     pub nonce: String,
     pub cloud_path: Option<String>,
 }
 
+pub struct FileData {
+    pub file_name: String,
+    pub chunks: Vec<FileChunkMetaData>,
+}
+
 const CHUNK_SIZE: usize = 4096;
 
-fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
+pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
     file_path: P,
     output_path: Q,
-) -> io::Result<Vec<FileChunk>> {
+) -> io::Result<FileData> {
     /*
     die gechnkten dateien sollen in einen ordner gespeichert werden, der name des ordners ist eine uuid
     der user sollte den pfad angeben wo der ordner erstellt werden soll
@@ -32,7 +36,13 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
     fs::create_dir_all(&output_folder_path)?;
 
     let mut file = File::open(file_path.as_ref())?;
-    let mut chunks: Vec<FileChunk> = Vec::new();
+    let mut chunks: Vec<FileChunkMetaData> = Vec::new();
+    // determine input file name to store in FileData
+    let file_name = file_path
+        .as_ref()
+        .file_name()
+        .and_then(|os| os.to_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| String::from("unknown"));
     let file_size = file.metadata()?.len() as usize;
     let mut index = 0;
     let mut bytes_red = 0;
@@ -51,7 +61,7 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         file.read_exact(&mut buffer)?;
         //hasher.finalize();
         // fürs erste der name der Datei
-        
+
         //let chunk_name = format!("chunk_{}", index);
         let chunk_path = output_folder_path.join(chunk_name);
         // erstellen der Datei passiert erst nach dem Hashen
@@ -59,7 +69,7 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
 
         chunk_file.write_all(&buffer)?;
         // TODO: metadaten index, filepath, size usw. sind nachher wichtig für Tabelle
-        chunks.push(FileChunk {
+        chunks.push(FileChunkMetaData {
             index: index,
 
             nonce: nonce,
@@ -69,38 +79,31 @@ fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         index += 1;
         bytes_red += read_size;
     }
-    Ok(chunks)
+    Ok(FileData { file_name, chunks })
 }
 
 fn encrypt_with_aes_siv(plain_data: &[u8]) -> (String, String) {
     let key = Aes256SivAead::generate_key(&mut OsRng);
     let cipher = Aes256SivAead::new(&key);
-    let nonce = Nonce::from_slice(b"any unique nonce"); 
-    let encrypted_data = cipher.encrypt(nonce, plain_data.as_ref()).expect("encryption failure!");
+    let nonce = Nonce::from_slice(b"any unique nonce");
+    let encrypted_data = cipher
+        .encrypt(nonce, plain_data.as_ref())
+        .expect("encryption failure!");
     println!("Encrypted data: {:?}", encrypted_data);
     println!("Encrypted data (hex): {}", hex::encode(&encrypted_data));
     (hex::encode(encrypted_data), hex::encode(nonce))
 }
 
 fn hash_encrypted_data(chunk_data: &String) -> String {
-
-
-    //let mut hasher = Sha256::new();
-    //let mut hash_results: Vec<String> = Vec::new();
-    let mut hasher = Sha256::new();
-    //hasher.finalize();
-    hasher.update(&chunk_data.as_bytes());
-    let hash_result = hasher.finalize();
+    // Compute SHA-256 digest directly
+    let hash_result = Sha256::digest(chunk_data.as_bytes());
     let hash_string = format!("{:x}", hash_result);
     println!("Hash of chunk {}", hash_string);
     // fürs erste der name der Datei
     hash_string
-
-
 }
 
-
-fn reconstruct_file(){}
+fn reconstruct_file() {}
 
 #[cfg(test)]
 mod tests {
@@ -117,39 +120,33 @@ mod tests {
         }*/
         let file_path = PathBuf::from("test/test_pdf.pdf");
         let output_path = PathBuf::from("test/output_chunks");
-        
+
         let result = split_file(file_path, output_path);
         assert!(result.is_ok());
-        let chunks = result.unwrap();
-        assert!(!chunks.is_empty());
+        let file_data = result.unwrap();
+        assert!(!file_data.chunks.is_empty());
     }
-    
-    
-    #[test]
-    fn test_hash_chunk(){
-        let mut chunks = vec![
-            FileChunk {
-                index: 0,
 
+    #[test]
+    fn test_hash_chunk() {
+        let mut chunks = vec![
+            FileChunkMetaData {
+                index: 0,
                 nonce: String::from("examplenonce1"),
                 cloud_path: None,
             },
-            FileChunk {
+            FileChunkMetaData {
                 index: 1,
-
                 nonce: String::from("examplenonce2"),
                 cloud_path: None,
             },
         ];
         //hash_encrypted_data(&mut chunks);
         //TODO: Tests erweitern
-
     }
-
     #[test]
-    fn test_encrypt_aes_siv(){
+    fn test_encrypt_aes_siv() {
         let data = b"TO ENCRYPT";
         //TODO: Encrypt Test erweitern
     }
-
 }

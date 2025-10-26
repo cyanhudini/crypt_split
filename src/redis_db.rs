@@ -1,10 +1,8 @@
-use crate::split::FileChunk;
+use crate::split::{FileData,FileChunkMetaData};
 use dotenv::dotenv;
-use redis::{self, Client, TypedCommands, RedisResult};
+use redis::{self, Client, RedisResult, TypedCommands};
 use serde_json;
 use std::env;
-
-
 
 pub struct RedisClient {
     connection: redis::Connection,
@@ -22,13 +20,18 @@ impl RedisClient {
     pub fn set_hvalue(
         &mut self,
         file_hash: &str,
-        chunk_info: &FileChunk,
+        chunk_info: &FileData,
     ) -> redis::RedisResult<usize> {
-        let serialized = serde_json::to_string(&chunk_info).map_err(|e| redis::RedisError::from((redis::ErrorKind::TypeError, "Fehler beim Serialisieren (Konvertiert von Serde zu RedisError)", e.to_string())))?;
-        let field = chunk_info.index.to_string(); 
+        let serialized = serde_json::to_string(&chunk_info.chunks).map_err(|e| {
+            redis::RedisError::from((
+                redis::ErrorKind::TypeError,
+                "Fehler beim Serialisieren (Konvertiert von Serde zu RedisError)",
+                e.to_string(),
+            ))
+        })?;
+        let field = String::from("AA");
         let res = self.connection.hset(file_hash, field, serialized);
-        return res
-        
+        return res;
     }
 
     pub fn delete_hkey(&mut self, file_hash: &str) -> RedisResult<usize> {
@@ -43,13 +46,11 @@ mod tests {
     use std::env;
     use std::path::PathBuf;
 
-
     //TODO: füge Test hinzu um hset mit einer echten Test Datei zu überprüfen
 
     #[test]
     fn test_set_key_value() {
-
-        let chunk = FileChunk {
+        let chunk = FileChunkMetaData {
             index: 2,
             nonce: String::from("nonce1234"),
             cloud_path: Some(String::from("s3://bucket/aaa")),
@@ -61,10 +62,11 @@ mod tests {
         let mut client = RedisClient::create_from_env().expect("Eoor beim Client Erstellen");
         let s_c_1 = serde_json::to_string(&chunk);
         // set the value
-        client.set_hvalue(&String::from("test:SSSS"), &chunk);
+        let res = client.set_hvalue("test:SSSS", &chunk).expect("hset failed");
+        // res is number of fields added (0 or 1)
+        assert!(res >= 0);
 
         // read raw JSON back directly from the connection and deserialize
-        
 
         // cleanup
         //let _removed: usize = client.connection.del(key).expect("del failed");
