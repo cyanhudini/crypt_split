@@ -1,5 +1,4 @@
 /target
 /test
-/Cargo.lock
-
+Cargo.lock
 .env

@@ -4,6 +4,8 @@ use redis::{self, Client, TypedCommands};
 use serde_json;
 use std::env;
 
+
+
 pub struct RedisClient {
     connection: redis::Connection,
 }
@@ -17,22 +19,16 @@ impl RedisClient {
         Ok(Self { connection: conn })
     }
 
-    pub fn set_key_value(
+    pub fn set_hvalue(
         &mut self,
         file_hash: &str,
         chunk_info: &FileChunk,
-    ) -> redis::RedisResult<()> {
-        let serialized = serde_json::to_string(&chunk_info)
-            .map_err(|e| {
-                redis::RedisError::from((
-                    redis::ErrorKind::TypeError,
-                    "serde_json::to_string failed",
-                    e.to_string(),
-                ))
-            })?;
+    ) -> redis::RedisResult<usize> {
+        let serialized = serde_json::to_string(&chunk_info).map_err(|e| redis::RedisError::from((redis::ErrorKind::TypeError, "Fehler beim Serialisieren (Konvertiert von Serde zu RedisError)", e.to_string())))?;
         let field = chunk_info.index.to_string(); 
-        let _ = self.connection.hset(file_hash, field, serialized);
-        Ok(())
+        let res = self.connection.hset(file_hash, field, serialized);
+        return res
+        
     }
 }
 
@@ -57,7 +53,7 @@ mod tests {
         let mut client = RedisClient::create_from_env().expect("Eoor beim Client Erstellen");
         let s_c_1 = serde_json::to_string(&chunk);
         // set the value
-        client.set_key_value(&String::from("test:SSSS"), &chunk);
+        client.set_hvalue(&String::from("test:SSSS"), &chunk);
 
         // read raw JSON back directly from the connection and deserialize
         
