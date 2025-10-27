@@ -2,8 +2,8 @@
 
 ## Methodik
 
-Um dies zu erreichen, werden die zu sichernden Daten in 4-KiB große Blöcke aufgeteilt, nachdem sie mit einem AE-Schema verschl¨usselt wurden.
-In diesem Fall verwenden wir RIV, da dieser als ”Nonce-Misuse” resistenter Algorithmus entworfen wurde. Zudem nutzen wir den Hashwert des Inhalts der resultieren- den Dateien als Namen.
+Um dies zu erreichen, werden die zu sichernden Daten in 4-KiB große Blöcke aufgeteilt, nachdem sie mit einem AE-Schema verschlüsselt wurden.
+In diesem Fall verwenden wir RIV, da dieser als ”Nonce-Misuse” resistenter Algorithmus entworfen wurde. Zudem nutzen wir den Hashwert des Inhalts der resultierenden Dateien als Namen.
 
 Damit eine Ordnung hergestellt werden kann, die zur Rekonstruktion dieser Dateien genutzt wird, benutzen wir eine Eigenschaft der Blöcke einer Blockchain: An jeden Datenblock wird der Hash des vorigen Blockes angehängt.
 Den Hash des ersten Blocks schreiben wir in die Metadaten. Da wir davon ausgehen müssen, dass diese Blöcke zufällig über mehrere Ordner hinweg gespeichert werden, hängen wir zusätzlich zum eigentlichen Hashwert noch den Hashwert des Pfades an.

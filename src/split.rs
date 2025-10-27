@@ -55,7 +55,7 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
     let mut index = 0;
     let mut bytes_red = 0;
     let mut first_block_hash: Option<String> = None;
-
+    let mut prev_chunk_hash: Option<String> = None;
     while bytes_red < file_size {
         let read_size = std::cmp::min(bytes_red+CHUNK_SIZE, file_size );
         let chunk_buffer = &encrypted_all[bytes_red..read_size];
@@ -74,7 +74,7 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         // fürs erste der name der Datei
 
         //let chunk_name = format!("chunk_{}", index);
-        
+        // TODO: Hash des vorigen Chiunks an den aktuellen hängen
 
         chunks.push(FileChunkMetaData {
             index,
