@@ -10,6 +10,7 @@ use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
+// TODO: füge anyhow hinzu für konkretere Fehler
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct FileChunkMetaData {
@@ -57,7 +58,6 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
 
     while bytes_red < file_size {
         let read_size = std::cmp::min(bytes_red+CHUNK_SIZE, file_size );
-        let buffer = vec![0u8; read_size];
         let chunk_buffer = &encrypted_all[bytes_red..read_size];
         let chunk_hex = hex::encode(chunk_buffer);
         let chunk_name = hash_encrypted_data(&chunk_hex);
