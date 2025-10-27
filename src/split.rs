@@ -83,7 +83,7 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         });
 
         index += 1;
-        bytes_red += read_size;
+        bytes_red = read_size;
     }
 
     Ok(FileData {
