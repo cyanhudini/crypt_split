@@ -2,6 +2,8 @@ use aes_siv::{
     aead::{Aead, KeyInit, OsRng},
     Aes256SivAead, Nonce,
 };
+
+use password_hash::rand_core::RngCore
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File};
@@ -19,6 +21,7 @@ pub struct FileChunkMetaData {
 pub struct FileData {
     pub file_name: String,
     pub chunks: Vec<FileChunkMetaData>,
+    pub hash_first_block: Option<String>,
 }
 
 const CHUNK_SIZE: usize = 4096;
@@ -34,8 +37,8 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
     let output_folder = Uuid::new_v4().to_string();
     let output_folder_path = output_path.as_ref().join(output_folder);
     fs::create_dir_all(&output_folder_path)?;
-
-    let mut file = File::open(file_path.as_ref())?;
+    let mut input = Vec::new();
+    let mut file = File::open(file_path.as_ref())?.read_to_end(&mut input);
     let mut chunks: Vec<FileChunkMetaData> = Vec::new();
     // determine input file name to store in FileData
     let file_name = file_path
@@ -43,22 +46,29 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         .file_name()
         .and_then(|os| os.to_str().map(|s| s.to_string()))
         .unwrap_or_else(|| String::from("unknown"));
-    let file_size = file.metadata()?.len() as usize;
+    //let file_size = file.metadata()?.len() as usize;
+
+    let mut nonce_bytes = [0u8; 12];
+    OsRng.fill_bytes(&mut nonce_bytes);
+    let nonce = Nonce::from_slice(&nonce_bytes);
+
+    let encrypt_data = encrypt_with_aes_siv(&input, nonce);
+    let file_size = encrypt_data.len();
     let mut index = 0;
     let mut bytes_red = 0;
     //let output_folder = Uuid::new_v4().to_string();
     while bytes_red < file_size {
         let rest = file_size - bytes_red;
         let read_size = std::cmp::min(rest, CHUNK_SIZE);
-
         let mut buffer = vec![0u8; read_size];
-        let (encrypted_data, nonce) = encrypt_with_aes_siv(&buffer);
+        //let (encrypted_data, nonce) = encrypt_with_aes_siv(&buffer);
         let chunk_name = hash_encrypted_data(&encrypted_data);
+
         //buffer needs to be hashed
         //let mut hasher = Sha256::new();
         //hasher.update(&buffer);
         //https://stackoverflow.com/questions/68694399/most-idiomatic-way-to-read-a-range-of-bytes-from-a-file
-        file.read_exact(&mut buffer)?;
+        //file.read_exact(&mut buffer)?;
         //hasher.finalize();
         // fürs erste der name der Datei
 
@@ -71,7 +81,6 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         // TODO: metadaten index, filepath, size usw. sind nachher wichtig für Tabelle
         chunks.push(FileChunkMetaData {
             index: index,
-
             nonce: nonce,
             cloud_path: None,
         });
@@ -79,19 +88,20 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         index += 1;
         bytes_red += read_size;
     }
+
     Ok(FileData { file_name, chunks })
 }
-
-fn encrypt_with_aes_siv(plain_data: &[u8]) -> (String, String) {
+// TODO: key als Paramter hinzufügen, Schlüssel durch KDF erzeugt werden, beim Starten des Programmes muss Passwort eingegeben werden
+fn encrypt_with_aes_siv(plain_data: &Vec<u8>, nonce: &Nonce) -> String {
     let key = Aes256SivAead::generate_key(&mut OsRng);
     let cipher = Aes256SivAead::new(&key);
-    let nonce = Nonce::from_slice(b"any unique nonce");
+    //let nonce = Nonce::from_slice(b"any unique nonce");
     let encrypted_data = cipher
         .encrypt(nonce, plain_data.as_ref())
         .expect("encryption failure!");
     println!("Encrypted data: {:?}", encrypted_data);
     println!("Encrypted data (hex): {}", hex::encode(&encrypted_data));
-    (hex::encode(encrypted_data), hex::encode(nonce))
+    hex::encode(encrypted_data)
 }
 
 fn hash_encrypted_data(chunk_data: &String) -> String {
@@ -129,18 +139,7 @@ mod tests {
 
     #[test]
     fn test_hash_chunk() {
-        let mut chunks = vec![
-            FileChunkMetaData {
-                index: 0,
-                nonce: String::from("examplenonce1"),
-                cloud_path: None,
-            },
-            FileChunkMetaData {
-                index: 1,
-                nonce: String::from("examplenonce2"),
-                cloud_path: None,
-            },
-        ];
+
         //hash_encrypted_data(&mut chunks);
         //TODO: Tests erweitern
     }
