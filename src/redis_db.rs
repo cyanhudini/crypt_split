@@ -1,4 +1,4 @@
-use crate::split::{FileData,FileChunkMetaData};
+use crate::split::{FileChunkMetaData, FileData};
 use dotenv::dotenv;
 use redis::{self, Client, RedisResult, TypedCommands};
 use serde_json;
@@ -42,10 +42,9 @@ impl RedisClient {
         Ok(res)
     }
 
-    pub fn get_hvalues(&mut self, file_name : &str) -> RedisResult<()>{
+    pub fn get_hvalues(&mut self, file_name: &str) -> RedisResult<()> {
         let res = self.connection.get(file_name);
         Ok(())
-
     }
 }
 
@@ -65,15 +64,21 @@ mod tests {
             cloud_path: Some(String::from("s3://bucket/aaa")),
         };
 
-        //let key = "test:set_key_value:1";
+        let file_data = FileData {
+            file_name: String::from("testfile"),
+            chunks: vec![chunk.clone()],
+            hash_first_block: None,
+        };
 
+        //let key = "test:set_key_value:1";
 
         let mut client = RedisClient::create_from_env().expect("Eoor beim Client Erstellen");
         let s_c_1 = serde_json::to_string(&chunk);
 
-        let res = client.set_hvalue("test:SSSS", &chunk).expect("hset failed");
+        let res = client
+            .set_hvalue("test:SSSS", &file_data)
+            .expect("hset failed");
 
         assert!(res >= 0);
-
     }
 }

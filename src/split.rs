@@ -3,7 +3,7 @@ use aes_siv::{
     Aes256SivAead, Nonce,
 };
 
-use password_hash::rand_core::RngCore
+use password_hash::rand_core::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File};
@@ -11,7 +11,7 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct FileChunkMetaData {
     pub index: usize,
     pub nonce: String,
@@ -38,33 +38,34 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
     let output_folder_path = output_path.as_ref().join(output_folder);
     fs::create_dir_all(&output_folder_path)?;
     let mut input = Vec::new();
-    let mut file = File::open(file_path.as_ref())?.read_to_end(&mut input);
-    let mut chunks: Vec<FileChunkMetaData> = Vec::new();
-    // determine input file name to store in FileData
+    File::open(file_path.as_ref())?.read_to_end(&mut input)?;
     let file_name = file_path
         .as_ref()
         .file_name()
         .and_then(|os| os.to_str().map(|s| s.to_string()))
         .unwrap_or_else(|| String::from("unknown"));
-    //let file_size = file.metadata()?.len() as usize;
-
     let mut nonce_bytes = [0u8; 12];
     OsRng.fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
+    let encrypted_all = encrypt_with_aes_siv(&input, nonce);
 
-    let encrypt_data = encrypt_with_aes_siv(&input, nonce);
-    let file_size = encrypt_data.len();
+    let mut chunks: Vec<FileChunkMetaData> = Vec::new();
+    let file_size = encrypted_all.len();
     let mut index = 0;
     let mut bytes_red = 0;
-    //let output_folder = Uuid::new_v4().to_string();
-    while bytes_red < file_size {
-        let rest = file_size - bytes_red;
-        let read_size = std::cmp::min(rest, CHUNK_SIZE);
-        let mut buffer = vec![0u8; read_size];
-        //let (encrypted_data, nonce) = encrypt_with_aes_siv(&buffer);
-        let chunk_name = hash_encrypted_data(&encrypted_data);
+    let mut first_block_hash: Option<String> = None;
 
-        //buffer needs to be hashed
+    while bytes_red < file_size {
+        let read_size = std::cmp::min(CHUNK_SIZE, file_size - bytes_red);
+        let buffer = vec![0u8; read_size];
+        let chunk_buffer = &encrypted_all[bytes_red..read_size];
+        let chunk_hex = hex::encode(chunk_buffer);
+        let chunk_name = hash_encrypted_data(&chunk_hex);
+
+        let chunk_path = output_folder_path.join(chunk_name.clone());
+        let mut chunk_file = File::create(&chunk_path)?;
+        chunk_file.write_all(chunk_buffer)?;
+         //buffer needs to be hashed
         //let mut hasher = Sha256::new();
         //hasher.update(&buffer);
         //https://stackoverflow.com/questions/68694399/most-idiomatic-way-to-read-a-range-of-bytes-from-a-file
@@ -73,15 +74,11 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         // fürs erste der name der Datei
 
         //let chunk_name = format!("chunk_{}", index);
-        let chunk_path = output_folder_path.join(chunk_name);
-        // erstellen der Datei passiert erst nach dem Hashen
-        let mut chunk_file = File::create(&chunk_path)?;
+        
 
-        chunk_file.write_all(&buffer)?;
-        // TODO: metadaten index, filepath, size usw. sind nachher wichtig für Tabelle
         chunks.push(FileChunkMetaData {
-            index: index,
-            nonce: nonce,
+            index,
+            nonce: hex::encode(nonce), // muss geändert werden
             cloud_path: None,
         });
 
@@ -89,10 +86,14 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         bytes_red += read_size;
     }
 
-    Ok(FileData { file_name, chunks })
+    Ok(FileData {
+        file_name,
+        chunks,
+        hash_first_block: None,
+    })
 }
 // TODO: key als Paramter hinzufügen, Schlüssel durch KDF erzeugt werden, beim Starten des Programmes muss Passwort eingegeben werden
-fn encrypt_with_aes_siv(plain_data: &Vec<u8>, nonce: &Nonce) -> String {
+fn encrypt_with_aes_siv(plain_data: &Vec<u8>, nonce: &Nonce) -> Vec<u8> {
     let key = Aes256SivAead::generate_key(&mut OsRng);
     let cipher = Aes256SivAead::new(&key);
     //let nonce = Nonce::from_slice(b"any unique nonce");
@@ -101,17 +102,18 @@ fn encrypt_with_aes_siv(plain_data: &Vec<u8>, nonce: &Nonce) -> String {
         .expect("encryption failure!");
     println!("Encrypted data: {:?}", encrypted_data);
     println!("Encrypted data (hex): {}", hex::encode(&encrypted_data));
-    hex::encode(encrypted_data)
+    encrypted_data
 }
 
 fn hash_encrypted_data(chunk_data: &String) -> String {
-    // Compute SHA-256 digest directly
+
     let hash_result = Sha256::digest(chunk_data.as_bytes());
     let hash_string = format!("{:x}", hash_result);
-    println!("Hash of chunk {}", hash_string);
+    
     // fürs erste der name der Datei
     hash_string
 }
+
 
 fn reconstruct_file() {}
 
@@ -121,7 +123,7 @@ mod tests {
 
     #[test]
     fn test_split_file() {
-        // if test file does not exist, create it and write some data
+       
         use std::path::PathBuf;
         /*if !Path::new("src/test.txt").exists() {
             let mut file = File::create("src/test.txt").unwrap();
