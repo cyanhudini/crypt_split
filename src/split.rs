@@ -15,7 +15,6 @@ use uuid::Uuid;
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct FileChunkMetaData {
     pub index: usize,
-    pub nonce: String,
     pub cloud_path: Option<String>,
 }
 
@@ -23,6 +22,7 @@ pub struct FileData {
     pub file_name: String,
     pub chunks: Vec<FileChunkMetaData>,
     pub hash_first_block: Option<String>,
+    pub nonce: String,
 }
 
 const CHUNK_SIZE: usize = 4096;
@@ -45,6 +45,7 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         .file_name()
         .and_then(|os| os.to_str().map(|s| s.to_string()))
         .unwrap_or_else(|| String::from("unknown"));
+    //TODO: Nonce pro Chunk generieren
     let mut nonce_bytes = [0u8; 16];
     OsRng.fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
@@ -78,7 +79,7 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
 
         chunks.push(FileChunkMetaData {
             index,
-            nonce: hex::encode(nonce), // muss geändert werden
+             // muss geändert werden
             cloud_path: None,
         });
 
@@ -90,6 +91,7 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         file_name,
         chunks,
         hash_first_block: None,
+        nonce: hex::encode(nonce),
     })
 }
 // TODO: key als Paramter hinzufügen, Schlüssel durch KDF erzeugt werden, beim Starten des Programmes muss Passwort eingegeben werden

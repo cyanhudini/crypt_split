@@ -7,6 +7,7 @@ use std::env;
 pub struct RedisClient {
     connection: redis::Connection,
 }
+// TODO: wie händle ich duplikate?
 // TODO: implementiere SET, GET, DELETE und Basic Auth, Connection sollte langlebig sein
 impl RedisClient {
     pub fn create_from_env() -> RedisResult<Self> {
@@ -60,7 +61,7 @@ mod tests {
     fn test_set_key_value() {
         let chunk = FileChunkMetaData {
             index: 2,
-            nonce: String::from("nonce1234"),
+
             cloud_path: Some(String::from("s3://bucket/aaa")),
         };
 
