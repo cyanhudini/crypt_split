@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct FileChunkMetaData {
+    // TODO: Index muss entfernt werden, Ordnugn wird impliziert
     pub index: usize,
     pub cloud_path: Option<String>,
 }

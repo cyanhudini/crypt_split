@@ -18,6 +18,8 @@ impl RedisClient {
         Ok(Self { connection: conn })
     }
     //TODO: file_hash sollte später der datei name sein, return type eventuell zu () bzw. kännte es zum logging benutzt werden
+    //TODO: füge redis-derive hinzu um das mapping zu vereinfachen
+    
     pub fn set_hvalue(
         &mut self,
         file_hash: &str,
@@ -69,6 +71,7 @@ mod tests {
             file_name: String::from("testfile"),
             chunks: vec![chunk.clone()],
             hash_first_block: None,
+            nonce: String::from("nonce"),
         };
 
         //let key = "test:set_key_value:1";
