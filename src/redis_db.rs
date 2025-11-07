@@ -7,7 +7,6 @@ use std::env;
 pub struct RedisClient {
     connection: redis::Connection,
 }
-// TODO: wie händle ich duplikate?
 // TODO: implementiere SET, GET, DELETE und Basic Auth, Connection sollte langlebig sein
 impl RedisClient {
     pub fn create_from_env() -> RedisResult<Self> {
@@ -18,8 +17,6 @@ impl RedisClient {
         Ok(Self { connection: conn })
     }
     //TODO: file_hash sollte später der datei name sein, return type eventuell zu () bzw. kännte es zum logging benutzt werden
-    //TODO: füge redis-derive hinzu um das mapping zu vereinfachen
-    
     pub fn set_hvalue(
         &mut self,
         file_hash: &str,
@@ -63,15 +60,15 @@ mod tests {
     fn test_set_key_value() {
         let chunk = FileChunkMetaData {
             index: 2,
-
             cloud_path: Some(String::from("s3://bucket/aaa")),
+            previous_chunk_hash: String::from("abcd1234"),
         };
 
         let file_data = FileData {
             file_name: String::from("testfile"),
             chunks: vec![chunk.clone()],
             hash_first_block: None,
-            nonce: String::from("nonce"),
+            nonce: String::from("nonce1234"),
         };
 
         //let key = "test:set_key_value:1";

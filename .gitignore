@@ -2,3 +2,4 @@
 /test
 Cargo.lock
 .env
+/src/split_t.rs

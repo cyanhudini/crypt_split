@@ -17,6 +17,7 @@ pub struct FileChunkMetaData {
     // TODO: Index muss entfernt werden, Ordnugn wird impliziert
     pub index: usize,
     pub cloud_path: Option<String>,
+    pub previous_chunk_hash: String,
 }
 
 pub struct FileData {
@@ -62,7 +63,17 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         let read_size = std::cmp::min(bytes_red+CHUNK_SIZE, file_size );
         let chunk_buffer = &encrypted_all[bytes_red..read_size];
         let chunk_hex = hex::encode(chunk_buffer);
-        let chunk_name = hash_encrypted_data(&chunk_hex);
+        let chunk_hash = hash_encrypted_data(&chunk_hex);
+
+        if index == 0 {
+            first_block_hash = Some(chunk_hash.clone());
+        }
+
+        let chunk_name = if let Some(ref prev_hash) = prev_chunk_hash {
+            format!("{}_{}", chunk_hash, prev_hash)
+        } else {
+            chunk_hash.clone()
+        };
 
         let chunk_path = output_folder_path.join(chunk_name.clone());
         let mut chunk_file = File::create(&chunk_path)?;
@@ -74,7 +85,7 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         //file.read_exact(&mut buffer)?;
         //hasher.finalize();
         // fürs erste der name der Datei
-
+        
         //let chunk_name = format!("chunk_{}", index);
         // TODO: Hash des vorigen Chiunks an den aktuellen hängen
 
@@ -82,8 +93,9 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
             index,
              // muss geändert werden
             cloud_path: None,
+            previous_chunk_hash: chunk_hash.clone(),
         });
-
+        prev_chunk_hash = Some(chunk_hash);
         index += 1;
         bytes_red = read_size;
     }
@@ -91,7 +103,7 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
     Ok(FileData {
         file_name,
         chunks,
-        hash_first_block: None,
+        hash_first_block: first_block_hash,
         nonce: hex::encode(nonce),
     })
 }
@@ -120,10 +132,25 @@ fn hash_encrypted_data(chunk_data: &String) -> String {
 
 fn reconstruct_file() {}
 
+fn check_integrity_block() {}
+
+fn check_integrity_file(){}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    /*
+    TODO Tests:
+    - 1 Block Split
+    - >4Gb Split
+    - korrektes Linking (ist der letzte Block wirklich der Vorgänger)
+    - ob der erste Block nur ein Hash ist
+    - ob Hash = Hash(chunk_data)
+    - Integrität der ganzen Kette
+    - decrypt (Schlüssel Management muss nochin implementiert werden)
+    - 
 
+     */
     #[test]
     fn test_split_file() {
        
