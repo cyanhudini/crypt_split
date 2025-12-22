@@ -17,11 +17,14 @@ impl RedisClient {
         Ok(Self { connection: conn })
     }
 
-    pub fn store_chunk_metadata(file_data: &FileData) -> RedisResult<()> {
-
+    pub fn store_chunk_metadata(&mut self, file_data: &FileData) -> RedisResult<()> {
+        let key = format!("{}", file_data.file_name);
+        
+        self.connection.hset_multiple(&key, )
     }
 
-    pub fn retrieve_chunk_metadata()-> RedisResult<()> {}
+    pub fn retrieve_chunk_metadata(&mut self)-> RedisResult<()> {
+    }
 
     pub fn delete_file_chun_metadata() -> RedisResult<()> {}
 
