@@ -17,9 +17,11 @@ pub struct FileChunkMetaData {
     // TODO: Index muss entfernt werden, Ordnugn wird impliziert
     pub index: usize,
     pub cloud_path: Option<String>,
-    pub previous_chunk_hash: String,
+    pub chunk_hash: String,       
+    pub previous_chunk_hash: String, 
 }
 
+#[derive(Debug)]
 pub struct FileData {
     pub file_name: String,
     pub chunks: Vec<FileChunkMetaData>,
@@ -91,9 +93,9 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
 
         chunks.push(FileChunkMetaData {
             index,
-             // muss geändert werden
             cloud_path: None,
-            previous_chunk_hash: chunk_hash.clone(),
+            chunk_hash: chunk_hash.clone(),
+            previous_chunk_hash: prev_chunk_hash.clone().unwrap_or_default(),
         });
         prev_chunk_hash = Some(chunk_hash);
         index += 1;

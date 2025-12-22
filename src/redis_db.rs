@@ -16,6 +16,15 @@ impl RedisClient {
         let conn = client.get_connection()?;
         Ok(Self { connection: conn })
     }
+
+    pub fn store_chunk_metadata(file_data: &FileData) -> RedisResult<()> {
+
+    }
+
+    pub fn retrieve_chunk_metadata()-> RedisResult<()> {}
+
+    pub fn delete_file_chun_metadata() -> RedisResult<()> {}
+
     //TODO: file_hash sollte später der datei name sein, return type eventuell zu () bzw. kännte es zum logging benutzt werden
     pub fn set_hvalue(
         &mut self,
@@ -61,7 +70,7 @@ mod tests {
         let chunk = FileChunkMetaData {
             index: 2,
             cloud_path: Some(String::from("s3://bucket/aaa")),
-            previous_chunk_hash: String::from("abcd1234"),
+            previous_chunk_hash: Some(String::from("abcd1234")),
         };
 
         let file_data = FileData {
