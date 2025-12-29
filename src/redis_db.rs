@@ -17,37 +17,59 @@ impl RedisClient {
         Ok(Self { connection: conn })
     }
 
-    pub fn store_chunk_metadata(&mut self, file_data: &FileData) -> RedisResult<Option<FileData>> {
+    pub fn store_chunk_metadata(&mut self, file_data: &FileData) -> RedisResult<()> {
         let key = format!("file:{}", file_data.file_name);
 
-        let origin_block = file_data.hash_first_block.unwrap_or("".to_string());
+        let origin_block = file_data.hash_first_block.clone().unwrap_or("".to_string());
         let chunks_count = file_data.chunks.len().to_string();
         // zwei redis Operationen: erst generelle Info setzen und dann die serialisierten Chunks
 
         self.connection.hset_multiple(&key, &[
             ("origin_block_hash", origin_block),
-            ("nonce", file_data.nonce),
+            ("nonce", file_data.nonce.clone()),
             ("chunks_count", chunks_count),
-        ]);
+        ])?;
         //serialize
-        
+        let serialized = serde_json::to_string(&file_data.chunks).map_err(|e| {
+        redis::RedisError::from((
+            redis::ErrorKind::TypeError,
+            "Fehler beim Serialisieren (Konvertiert von Serde zu RedisError)",
+            e.to_string(),
+            ))
+        })?;
+        self.connection.hset(&key, "chunks", serialized)?;
         Ok(())
 
     }
     // https://redis.io/docs/latest/commands/HMGET/
-    pub fn retrieve_chunk_metadata(&mut self, file_name: &str)-> RedisResult<()> {
+    pub fn retrieve_chunk_metadata(&mut self, file_name: &str)-> RedisResult<Option<FileData>> {
         let key = format!("file:{}",file_name);
 
         let all_chunks_info = self.connection.hmget(
             &key,
-            &["origin_block_hash", "nonce", "chunks_count"]
+            &["origin_block_hash", "nonce", "chunks_count", "chunks"]
         )?;
+        let ser_chunks = &all_chunks_info[4];
+        let serialized = serde_json::from_str(ser_chunks).map_err(|e| {
+            redis::RedisError::from((
+                redis::ErrorKind::TypeError,
+                "Fehler beim Serialisieren (Konvertiert von Serde zu RedisError)",
+                e.to_string(),
+            ))
+        })?;
+
+        let origin_block_hash = Some(all_chunks_info[1].clone());
 
 
-        Ok(())
+        Ok(Some(FileData {
+                file_name: file_name.to_string(),
+                chunks: serialized,
+                hash_first_block: origin_block_hash,
+                nonce: all_chunks_info[2].clone()
+            }))
     }
 
-    pub fn delete_file_chun_metadata() -> RedisResult<()> {}
+    pub fn delete_file_chunk_metadata() -> RedisResult<()> {}
 
     //TODO: file_hash sollte später der datei name sein, return type eventuell zu () bzw. kännte es zum logging benutzt werden
     pub fn set_hvalue(
@@ -73,11 +95,6 @@ impl RedisClient {
     pub fn delete_hkey(&mut self, file_hash: &str) -> RedisResult<usize> {
         let res = self.connection.del(file_hash)?;
         Ok(res)
-    }
-
-    pub fn get_hvalues(&mut self, file_name: &str) -> RedisResult<()> {
-        let res = self.connection.get(file_name);
-        Ok(())
     }
     //https://redis.io/docs/latest/commands/ping/ für minimalen Health Check
     pub fn ping(&mut self) -> RedisResult<bool>{
