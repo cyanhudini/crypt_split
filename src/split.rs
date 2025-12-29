@@ -92,7 +92,7 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         // fürs erste der name der Datei
         
         //let chunk_name = format!("chunk_{}", index);
-        // TODO: Hash des vorigen Chiunks an den aktuellen hängen
+        // TODO: Hash des vorigen Chunks an den aktuellen hängen
 
         chunks.push(FileChunkMetaData {
             index,
@@ -136,7 +136,20 @@ fn hash_encrypted_data(chunk_data: &String) -> String {
 }
 
 
-fn reconstruct_file() {}
+//fürs erste nehmen wir an das wir nur einen Chunks Ordner haben
+fn reconstruct_file<P: AsRef<Path>>(
+        key : &[u8; 64],
+        file_data: &FileData,
+        chunks_folder: P,
+        output_path: P) {
+    
+    let encrypted_data: Vec<u8> = Vec::new();
+    /*
+    1. retrieve chunk metadata
+    2. 
+     */
+
+}
 
 fn check_integrity_block() {}
 

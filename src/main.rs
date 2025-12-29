@@ -5,6 +5,8 @@ mod key_management;
 mod redis_db;
 mod split;
 
+
+//TODO: mittels Clap CLI Anwendung
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Hello, world!");
     let mut redis_client = redis_db::RedisClient::create_from_env()?;
