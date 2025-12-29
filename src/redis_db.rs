@@ -29,7 +29,7 @@ impl RedisClient {
             ("nonce", file_data.nonce),
             ("chunks_count", chunks_count),
         ]);
-
+        //serialize
         
         Ok(())
 
@@ -42,7 +42,7 @@ impl RedisClient {
             &key,
             &["origin_block_hash", "nonce", "chunks_count"]
         )?;
-        
+
 
         Ok(())
     }
@@ -79,6 +79,12 @@ impl RedisClient {
         let res = self.connection.get(file_name);
         Ok(())
     }
+    //https://redis.io/docs/latest/commands/ping/ für minimalen Health Check
+    pub fn ping(&mut self) -> RedisResult<bool>{
+        let pong : String = redis::cmd("PING").query(&mut self.connection)?;
+        Ok(pong == "PONG")
+    }
+
 }
 
 #[cfg(test)]
@@ -88,6 +94,11 @@ mod tests {
     use std::path::PathBuf;
 
     //TODO: füge Test hinzu um hset mit einer echten Test Datei zu überprüfen
+    #[test]
+    fn test_ping(){
+        let mut client = RedisClient::create_from_env().expect("Error beim Erstellen des Clients");
+        client.ping().unwrap_or(false);
+    }
 
     #[test]
     fn test_set_key_value() {
