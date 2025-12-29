@@ -69,7 +69,12 @@ impl RedisClient {
             }))
     }
 
-    pub fn delete_file_chunk_metadata() -> RedisResult<()> {}
+    pub fn delete_file_chunk_metadata(&mut self, file_name: &str) -> RedisResult<usize> {
+        let key = format!("file:{}",file_name);
+        //self.connection.del(key)?;
+        
+        Ok(self.connection.del(key)?)
+    }
 
     //TODO: file_hash sollte später der datei name sein, return type eventuell zu () bzw. kännte es zum logging benutzt werden
     pub fn set_hvalue(
