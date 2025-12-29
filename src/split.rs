@@ -126,6 +126,9 @@ fn encrypt_with_aes_siv(plain_data: &Vec<u8>, nonce: &Nonce, key: &[u8; 64]) -> 
     encrypted_data
 }
 
+// TODO: muss noch implementiert werden
+fn decrypt_with_aes_siv(){}
+
 fn hash_encrypted_data(chunk_data: &String) -> String {
 
     let hash_result = Sha256::digest(chunk_data.as_bytes());
@@ -141,14 +144,48 @@ fn reconstruct_file<P: AsRef<Path>>(
         key : &[u8; 64],
         file_data: &FileData,
         chunks_folder: P,
-        output_path: P) {
+        output_path: P) -> Result<PathBuf> {
     
     let encrypted_data: Vec<u8> = Vec::new();
     /*
     1. retrieve chunk metadata
-    2. 
+    2. for(i in chunks)
+            gehe all chunks durch und besorge Chunks von angegeben Ordner (später verschiedene Ordner)
+            speichere diese in einen gemeinsamen Ordner
+            lies chunks index 0
+            dann index 1
+
      */
 
+    for (index, meta) in file_data.chunks.iter().enumerate(){
+        let chunk_name = if index == 0 {
+            meta.chunk_hash.clone()
+        } else {
+            format!(
+                "{}{}",
+                meta.chunk_hash, meta.previous_chunk_hash
+            )
+        };
+        let chunk_path = chunks_folder.as_ref().join(&chunk_name);
+        let mut chunk_data = Vec::new();
+        File::open(&chunk_path)?.read_to_end(&mut chunk_data)?;
+        encrypted_data.extend(chunk_data);
+    }
+
+    let nonce_bytes =
+        hex::decode(&file_data.nonce).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    let nonce = Nonce::from_slice(&nonce_bytes);
+    
+    let decrypted_data = decrypt_with_aes_siv(&all_encrypted_data, nonce, key)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    
+    let output_file_path = output_path.as_ref().join(&file_data.file_name);
+    let mut output_file = File::create(&output_file_path)?;
+
+    output_file.write_all(&decrypted_data)?;
+
+
+    
 }
 
 fn check_integrity_block() {}
