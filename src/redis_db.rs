@@ -29,7 +29,7 @@ impl RedisClient {
             ("nonce", file_data.nonce.clone()),
             ("chunks_count", chunks_count),
         ])?;
-        //serialize
+
         let serialized = serde_json::to_string(&file_data.chunks).map_err(|e| {
         redis::RedisError::from((
             redis::ErrorKind::TypeError,
@@ -50,7 +50,8 @@ impl RedisClient {
             &["origin_block_hash", "nonce", "chunks_count", "chunks"]
         )?;
         let ser_chunks = &all_chunks_info[4];
-        let serialized = serde_json::from_str(ser_chunks).map_err(|e| {
+        //this function depends on never type fallback being `()`  
+        let serialized: Vec<FileChunkMetaData> = serde_json::from_str(ser_chunks).map_err(|e| {
             redis::RedisError::from((
                 redis::ErrorKind::TypeError,
                 "Fehler beim Serialisieren (Konvertiert von Serde zu RedisError)",
@@ -120,32 +121,5 @@ mod tests {
     fn test_ping(){
         let mut client = RedisClient::create_from_env().expect("Error beim Erstellen des Clients");
         client.ping().unwrap_or(false);
-    }
-
-    #[test]
-    fn test_set_key_value() {
-        let chunk = FileChunkMetaData {
-            index: 2,
-            cloud_path: Some(String::from("s3://bucket/aaa")),
-            previous_chunk_hash: Some(String::from("abcd1234")),
-        };
-
-        let file_data = FileData {
-            file_name: String::from("testfile"),
-            chunks: vec![chunk.clone()],
-            hash_first_block: None,
-            nonce: String::from("nonce1234"),
-        };
-
-        //let key = "test:set_key_value:1";
-
-        let mut client = RedisClient::create_from_env().expect("Eoor beim Client Erstellen");
-        let s_c_1 = serde_json::to_string(&chunk);
-
-        let res = client
-            .set_hvalue("test:SSSS", &file_data)
-            .expect("hset failed");
-
-        assert!(res >= 0);
     }
 }

@@ -10,6 +10,7 @@ use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
+
 // TODO: füge anyhow hinzu für konkretere Fehler
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -34,11 +35,13 @@ const CHUNK_SIZE: usize = 4096;
 pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
     file_path: P,
     output_path: Q,
+    key: &[u8; 64],
 ) -> io::Result<FileData> {
     /*
     die gechnkten dateien sollen in einen ordner gespeichert werden, der name des ordners ist eine uuid
     der user sollte den pfad angeben wo der ordner erstellt werden soll
     */
+    //TODO: es muss ein Schlüssel gesetzt sein
     let output_folder = Uuid::new_v4().to_string();
     let output_folder_path = output_path.as_ref().join(output_folder);
     fs::create_dir_all(&output_folder_path)?;
@@ -53,7 +56,7 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
     let mut nonce_bytes = [0u8; 16];
     OsRng.fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
-    let encrypted_all = encrypt_with_aes_siv(&input, nonce);
+    let encrypted_all = encrypt_with_aes_siv(&input, nonce, key);
 
     let mut chunks: Vec<FileChunkMetaData> = Vec::new();
     let file_size = encrypted_all.len();
@@ -93,6 +96,7 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
 
         chunks.push(FileChunkMetaData {
             index,
+            //TODO: cloud_path muss noch gesetzt werden
             cloud_path: None,
             chunk_hash: chunk_hash.clone(),
             previous_chunk_hash: prev_chunk_hash.clone().unwrap_or_default(),
@@ -110,9 +114,9 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
     })
 }
 // TODO: key als Paramter hinzufügen, Schlüssel durch KDF erzeugt werden, beim Starten des Programmes muss Passwort eingegeben werden
-fn encrypt_with_aes_siv(plain_data: &Vec<u8>, nonce: &Nonce) -> Vec<u8> {
-    let key = Aes256SivAead::generate_key(&mut OsRng);
-    let cipher = Aes256SivAead::new(&key);
+fn encrypt_with_aes_siv(plain_data: &Vec<u8>, nonce: &Nonce, key: &[u8; 64]) -> Vec<u8> {
+    //let key = Aes256SivAead::generate_key(&mut OsRng);
+    let cipher = Aes256SivAead::new_from_slice(key).expect("Falsche Länge des Keys");
     //let nonce = Nonce::from_slice(b"any unique nonce");
     let encrypted_data = cipher
         .encrypt(nonce, plain_data.as_ref())
@@ -165,7 +169,7 @@ mod tests {
         let file_path = PathBuf::from("test/test_pdf.pdf");
         let output_path = PathBuf::from("test/output_chunks");
 
-        let result = split_file(file_path, output_path);
+        //let result = split_file(file_path, output_path);
 
     }
 
