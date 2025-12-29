@@ -144,7 +144,7 @@ fn reconstruct_file<P: AsRef<Path>>(
         key : &[u8; 64],
         file_data: &FileData,
         chunks_folder: P,
-        output_path: P) -> Result<PathBuf> {
+        output_path: P) -> io::Result<PathBuf> {
     
     let encrypted_data: Vec<u8> = Vec::new();
     /*
@@ -178,11 +178,13 @@ fn reconstruct_file<P: AsRef<Path>>(
     
     let decrypted_data = decrypt_with_aes_siv(&all_encrypted_data, nonce, key)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-    
+
     let output_file_path = output_path.as_ref().join(&file_data.file_name);
     let mut output_file = File::create(&output_file_path)?;
 
     output_file.write_all(&decrypted_data)?;
+
+    Ok(output_file_path)
 
 
     
