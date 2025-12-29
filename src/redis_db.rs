@@ -17,11 +17,34 @@ impl RedisClient {
         Ok(Self { connection: conn })
     }
 
-    pub fn store_chunk_metadata(file_data: &FileData) -> RedisResult<Option<FileData>> {
-        let key = format!("file:{}", )
-    }
+    pub fn store_chunk_metadata(&mut self, file_data: &FileData) -> RedisResult<Option<FileData>> {
+        let key = format!("file:{}", file_data.file_name);
 
-    pub fn retrieve_chunk_metadata(&mut self)-> RedisResult<()> {
+        let origin_block = file_data.hash_first_block.unwrap_or("".to_string());
+        let chunks_count = file_data.chunks.len().to_string();
+        // zwei redis Operationen: erst generelle Info setzen und dann die serialisierten Chunks
+
+        self.connection.hset_multiple(&key, &[
+            ("origin_block_hash", origin_block),
+            ("nonce", file_data.nonce),
+            ("chunks_count", chunks_count),
+        ]);
+
+        
+        Ok(())
+
+    }
+    // https://redis.io/docs/latest/commands/HMGET/
+    pub fn retrieve_chunk_metadata(&mut self, file_name: &str)-> RedisResult<()> {
+        let key = format!("file:{}",file_name);
+
+        let all_chunks_info = self.connection.hmget(
+            &key,
+            &["origin_block_hash", "nonce", "chunks_count"]
+        )?;
+        
+
+        Ok(())
     }
 
     pub fn delete_file_chun_metadata() -> RedisResult<()> {}
