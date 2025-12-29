@@ -21,7 +21,8 @@ impl RedisClient {
         let key = format!("file:{}", )
     }
 
-    pub fn retrieve_chunk_metadata()-> RedisResult<()> {}
+    pub fn retrieve_chunk_metadata(&mut self)-> RedisResult<()> {
+    }
 
     pub fn delete_file_chun_metadata() -> RedisResult<()> {}
 
