@@ -17,8 +17,8 @@ impl RedisClient {
         Ok(Self { connection: conn })
     }
 
-    pub fn store_chunk_metadata(file_data: &FileData) -> RedisResult<()> {
-
+    pub fn store_chunk_metadata(file_data: &FileData) -> RedisResult<Option<FileData>> {
+        let key = format!("file:{}", )
     }
 
     pub fn retrieve_chunk_metadata()-> RedisResult<()> {}
