@@ -14,6 +14,13 @@ impl RedisClient {
         let url = env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1/".to_string());
         let client = Client::open(url)?;
         let conn = client.get_connection()?;
+
+        //TODO: Error Handling, eine ping_funktion für Health Check
+        /* if self.ping()? == PONG
+            Ok(Self)
+            else
+            Error(Keine Verbindung {E})
+         */
         Ok(Self { connection: conn })
     }
 
@@ -50,7 +57,7 @@ impl RedisClient {
             &["origin_block_hash", "nonce", "chunks_count", "chunks"]
         )?;
         let ser_chunks = &all_chunks_info[4];
-        //this function depends on never type fallback being `()`  
+
         let serialized: Vec<FileChunkMetaData> = serde_json::from_str(ser_chunks).map_err(|e| {
             redis::RedisError::from((
                 redis::ErrorKind::TypeError,
