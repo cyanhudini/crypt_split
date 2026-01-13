@@ -32,16 +32,10 @@ pub struct FileData {
 
 const CHUNK_SIZE: usize = 4096;
 
-pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
-    file_path: P,
-    output_path: Q,
-    key: &[u8; 64],
-) -> io::Result<FileData> {
-    /*
-    die gechnkten dateien sollen in einen ordner gespeichert werden, der name des ordners ist eine uuid
-    der user sollte den pfad angeben wo der ordner erstellt werden soll
-    */
-    //TODO: es muss ein Schlüssel gesetzt sein
+pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(file_path: P, output_path: Q, key: &[u8; 64],) -> io::Result<FileData> {
+    /* 
+
+     */
     let output_folder = Uuid::new_v4().to_string();
     let output_folder_path = output_path.as_ref().join(output_folder);
     fs::create_dir_all(&output_folder_path)?;
@@ -52,10 +46,11 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(
         .file_name()
         .and_then(|os| os.to_str().map(|s| s.to_string()))
         .unwrap_or_else(|| String::from("unknown"));
-    //TODO: Nonce pro Chunk generieren
+    //TODO: Nonce pro Datei generieren
     let mut nonce_bytes = [0u8; 16];
     OsRng.fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
+    //TODO: zeroization hinzufügen -> https://crates.io/crates/zeroize
     let encrypted_all = encrypt_with_aes_siv(&input, nonce, key);
 
     let mut chunks: Vec<FileChunkMetaData> = Vec::new();
@@ -126,8 +121,12 @@ fn encrypt_with_aes_siv(plain_data: &Vec<u8>, nonce: &Nonce, key: &[u8; 64]) -> 
     encrypted_data
 }
 
-// TODO: muss noch implementiert werden
-fn decrypt_with_aes_siv(){}
+fn decrypt_with_aes_siv(encrypted_data: &[u8],nonce: &Nonce,key: &[u8; 64])-> Result<Vec<u8>, String>{
+    let cipher = Aes256SivAead::new_from_slice(key).expect("Invalid key length");
+    cipher
+        .decrypt(nonce, encrypted_data)
+        .map_err(|e| format!("decryption failure: {}", e))
+}
 
 fn hash_encrypted_data(chunk_data: &String) -> String {
 
@@ -138,13 +137,8 @@ fn hash_encrypted_data(chunk_data: &String) -> String {
     hash_string
 }
 
-
 //fürs erste nehmen wir an das wir nur einen Chunks Ordner haben
-fn reconstruct_file<P: AsRef<Path>>(
-        key : &[u8; 64],
-        file_data: &FileData,
-        chunks_folder: P,
-        output_path: P) -> io::Result<PathBuf> {
+fn reconstruct_file<P: AsRef<Path>>(key : &[u8; 64], file_data: &FileData,chunks_folder: P,output_path: P){
     
     let encrypted_data: Vec<u8> = Vec::new();
     /*
@@ -155,39 +149,7 @@ fn reconstruct_file<P: AsRef<Path>>(
             lies chunks index 0
             dann index 1
 
-     */
-
-    for (index, meta) in file_data.chunks.iter().enumerate(){
-        let chunk_name = if index == 0 {
-            meta.chunk_hash.clone()
-        } else {
-            format!(
-                "{}{}",
-                meta.chunk_hash, meta.previous_chunk_hash
-            )
-        };
-        let chunk_path = chunks_folder.as_ref().join(&chunk_name);
-        let mut chunk_data = Vec::new();
-        File::open(&chunk_path)?.read_to_end(&mut chunk_data)?;
-        encrypted_data.extend(chunk_data);
-    }
-
-    let nonce_bytes =
-        hex::decode(&file_data.nonce).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-    let nonce = Nonce::from_slice(&nonce_bytes);
-    
-    let decrypted_data = decrypt_with_aes_siv(&all_encrypted_data, nonce, key)
-        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-
-    let output_file_path = output_path.as_ref().join(&file_data.file_name);
-    let mut output_file = File::create(&output_file_path)?;
-
-    output_file.write_all(&decrypted_data)?;
-
-    Ok(output_file_path)
-
-
-    
+     */     
 }
 
 fn check_integrity_block() {}

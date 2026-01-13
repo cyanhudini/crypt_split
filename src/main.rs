@@ -115,6 +115,7 @@ fn cli_encrypt_and_split<P: AsRef<Path>, Q: AsRef<Path>>(file_path: P, output_pa
     Ok(())
 }
 
+//TODO: Verteilung muss erst implementiert werden
 fn encrypt_and_distribute(){}
 
 fn list_all_stored_files(){}
