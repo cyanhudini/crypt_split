@@ -32,11 +32,15 @@ pub struct FileData {
 
 const CHUNK_SIZE: usize = 4096;
 
-pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(file_path: P, output_path: Q, key: &[u8; 64],) -> io::Result<FileData> {
+pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(file_path: P, output_path: Q, key: &[u8; 64],) -> io::Result<(FileData, PathBuf)> {
     /* 
-
+    /home/nils/Uni/BA/split_hash_crypt_distr/chunks/48372587ac04466dbb4a4e0578925c74
      */
-    let output_folder = Uuid::new_v4().to_string();
+
+    let binding = Uuid::new_v4().to_string();
+    let pre_split = binding.split("-");
+    let output_folder = pre_split.collect::<String>();
+
     let output_folder_path = output_path.as_ref().join(output_folder);
     fs::create_dir_all(&output_folder_path)?;
     let mut input = Vec::new();
@@ -101,12 +105,12 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(file_path: P, output_path: Q, 
         bytes_red = read_size;
     }
 
-    Ok(FileData {
+    Ok((FileData {
         file_name,
         chunks,
         hash_first_block: first_block_hash,
         nonce: hex::encode(nonce),
-    })
+    }, output_folder_path))
 }
 // TODO: key als Paramter hinzufügen, Schlüssel durch KDF erzeugt werden, beim Starten des Programmes muss Passwort eingegeben werden
 fn encrypt_with_aes_siv(plain_data: &Vec<u8>, nonce: &Nonce, key: &[u8; 64]) -> Vec<u8> {
@@ -116,8 +120,8 @@ fn encrypt_with_aes_siv(plain_data: &Vec<u8>, nonce: &Nonce, key: &[u8; 64]) -> 
     let encrypted_data = cipher
         .encrypt(nonce, plain_data.as_ref())
         .expect("encryption failure!");
-    println!("Encrypted data: {:?}", encrypted_data);
-    println!("Encrypted data (hex): {}", hex::encode(&encrypted_data));
+    //println!("Encrypted data: {:?}", encrypted_data);
+    //println!("Encrypted data (hex): {}", hex::encode(&encrypted_data));
     encrypted_data
 }
 

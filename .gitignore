@@ -2,7 +2,7 @@
 /test
 Cargo.lock
 .env
-/src/split_t.rs
-/src/redis_t.rs
 REDIS_STORAGE_STRATEGY.md
 .key_file
+/chunks
+local_cloud.json

@@ -48,6 +48,11 @@ impl RedisClient {
         Ok(())
 
     }
+    //TODO: eine update funktion implementieren um mehr Kontrolle zu haben im Falle wo Date bereits existiert,
+    //wenn User z.B. aus Versehen doppelt verschlüsselt, sodass diese nicht überschrieben wird
+    //check ob prüfsumme der Datei schon existiert z.B. durch file:{file_name}/checksum im Falle wo Name gleich ist
+    pub fn update_chunk_cloud_path(){}
+
     // https://redis.io/docs/latest/commands/HMGET/
     pub fn retrieve_chunk_metadata(&mut self, file_name: &str)-> RedisResult<Option<FileData>> {
         let key = format!("file:{}",file_name);
@@ -56,7 +61,7 @@ impl RedisClient {
             &key,
             &["origin_block_hash", "nonce", "chunks_count", "chunks"]
         )?;
-        let ser_chunks = &all_chunks_info[4];
+        let ser_chunks = &all_chunks_info[3];
 
         let serialized: Vec<FileChunkMetaData> = serde_json::from_str(ser_chunks).map_err(|e| {
             redis::RedisError::from((
