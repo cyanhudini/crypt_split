@@ -80,8 +80,8 @@ pub fn load_and_unlock_key<P: AsRef<Path>>(key_file_path : P, password: &str) ->
 
     let mut xored_key = [0u8; 64];
     
-    key_file.read_exact(&mut salt);
-    key_file.read_exact(&mut xored_key);
+    key_file.read_exact(&mut salt)?;
+    key_file.read_exact(&mut xored_key)?;
     let hashed_password = sha256_hash_password(password);
     let (derived_key, _) = scrypt_key_derivation(password, salt);
     let unlocked_key = xor_key_password_hash(&xored_key, &hashed_password);
