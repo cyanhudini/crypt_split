@@ -5,7 +5,7 @@ use scrypt::{scrypt, Params};
 use sha2::{Digest, Sha256};
 use std::{fs::{self, File}, io::{self, Read, Write}};
 use std::path::{Path, PathBuf};
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 /* OWWASP Parameter
 N= 2^15
 r= 8
@@ -83,10 +83,10 @@ pub fn load_and_unlock_key<P: AsRef<Path>>(key_file_path : P, password: &str) ->
     key_file.read_exact(&mut salt)?;
     key_file.read_exact(&mut xored_key)?;
     let hashed_password = sha256_hash_password(password);
-    let (derived_key, _) = scrypt_key_derivation(password, salt);
+    let (mut derived_key, _) = scrypt_key_derivation(password, salt);
     let unlocked_key = xor_key_password_hash(&xored_key, &hashed_password);
     if derived_key != unlocked_key {
-
+        derived_key.zeroize();
     }
 
     Ok(unlocked_key)
