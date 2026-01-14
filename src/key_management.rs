@@ -1,9 +1,9 @@
 
-use aes_siv::{aead::OsRng, Aes256SivAead, KeyInit};
+use aes_siv::{aead::OsRng};
 use password_hash::rand_core::RngCore;
 use scrypt::{scrypt, Params};
 use sha2::{Digest, Sha256};
-use std::{fs::{self, File}, io::{self, Read, Write}};
+use std::{fs::{File}, io::{self, Read, Write}};
 use std::path::{Path, PathBuf};
 use zeroize::{Zeroize, Zeroizing};
 /* OWWASP Parameter
@@ -85,6 +85,7 @@ pub fn load_and_unlock_key<P: AsRef<Path>>(key_file_path : P, password: &str) ->
     let hashed_password = sha256_hash_password(password);
     let (mut derived_key, _) = scrypt_key_derivation(password, salt);
     let unlocked_key = xor_key_password_hash(&xored_key, &hashed_password);
+    //TODO: gibt es einen besseren Weg um Korrektheit zu testen
     if derived_key != unlocked_key {
         derived_key.zeroize();
     }

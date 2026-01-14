@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::{fs, io};
 use rand::Rng;
 use crate::split::FileChunkMetaData;
-use std::io::{Write, ErrorKind};
+use std::io::{ErrorKind};
 
 
 #[derive(serde::Deserialize)]
@@ -10,6 +10,8 @@ pub struct LocalCloudConfig {
     local_cloud_paths : Vec<String>,
 }
 
+
+// Funktion welche den Ordner löscht, welcher entsteht wenn Chunks diese gesplittet werden bevor sie verteilt werden
 pub fn delete_tmp_chunks(){}
 
 pub fn choose_random_folder(configs: &LocalCloudConfig) -> io::Result<String>{
@@ -19,10 +21,16 @@ pub fn choose_random_folder(configs: &LocalCloudConfig) -> io::Result<String>{
         return Err(io::Error::new(ErrorKind::InvalidInput, "Keine lokalen Cloud Pfade in der Konfiguration gefunden"));
     }
     
-    let mut rng = rand::thread_rng();
-    let random_index = rng.gen_range(0..paths.len());
+    let mut rng = rand::rng();
+    let random_index = rng.random_range(0..paths.len());
     Ok(paths[random_index].clone())
 }
+
+pub fn retrieve_chunks_from_folder(){
+
+
+}
+
 
 pub fn disitribute_file_chunks<P: AsRef<Path>>(config: &str, chunks_folder_path: P, chunk_metadata : &mut Vec<FileChunkMetaData>, file_name: &str) -> io::Result<()>{
     

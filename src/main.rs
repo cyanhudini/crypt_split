@@ -1,6 +1,6 @@
 use crate::{key_management::load_and_unlock_key, split::split_file};
-use clap::{Args, Parser, Subcommand, ValueEnum};
-use redis::{self, geo::Coord};
+use clap::{Parser, Subcommand};
+use redis::{self};
 use serde::Deserialize;
 use std::fs;
 use std::io::{self, ErrorKind, Write};
@@ -12,7 +12,6 @@ mod key_management;
 mod redis_db;
 mod split;
 
-use split::FileData;
 
 const KEY_FILE_PATH: &str = ".key_file";
 
@@ -106,7 +105,7 @@ fn cli_encrypt_and_split<P: AsRef<Path>, Q: AsRef<Path>>(file_path: P,output_pat
     //sobald der entsperrte Schlüssel nicht mehr gebraucht ist -> zeroize, aus Arbeitsspeicher entfernen
     unlocked_key.zeroize();
     let mut redis_client = redis_db::RedisClient::create_from_env()
-        .map_err(|e| io::Error::new(ErrorKind::Other, "Fehler beim Erstellen des RedisCLients"))?;
+        .map_err(|_| io::Error::new(ErrorKind::Other, "Fehler beim Erstellen des RedisCLients"))?;
     redis_client
         .store_chunk_metadata(&split_file_data)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
@@ -209,4 +208,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+
+#[cfg(test)]
+mod test {
+    //TODO: Benchmarking mit DIVAN hinzufügen https://nikolaivazquez.com/blog/divan/
 }

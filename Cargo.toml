@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 aes-siv = "0.7.0"
 clap = { version = "4.5.50", features = ["derive"] }
+divan = "0.1.21"
 dotenv = "0.15.0"
 hex = "0.4.3"
 hmac = "0.12.1"
@@ -15,7 +16,7 @@ rand = "0.9.2"
 redis = "0.32.7"
 redis-derive = "0.2.0"
 scrypt = "0.11.0"
-serde = "1.0.228"
+serde = {version="1.0.228", features = ["derive"]}
 serde_json = "1.0.145"
 sha2 = "0.10.9"
 zeroize = "1.8.2"

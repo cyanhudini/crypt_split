@@ -141,7 +141,7 @@ fn hash_encrypted_data(chunk_data: &String) -> String {
     hash_string
 }
 
-//fürs erste nehmen wir an das wir nur einen Chunks Ordner haben
+
 fn reconstruct_file<P: AsRef<Path>>(key : &[u8; 64], file_data: &FileData,chunks_folder: P,output_path: P){
     
     let encrypted_data: Vec<u8> = Vec::new();
@@ -152,8 +152,11 @@ fn reconstruct_file<P: AsRef<Path>>(key : &[u8; 64], file_data: &FileData,chunks
             speichere diese in einen gemeinsamen Ordner
             lies chunks index 0
             dann index 1
+    TODO: cloud::retrieve_chunks_from_folder() muss erst implementiert werden
+     */
 
-     */     
+    
+
 }
 
 fn check_integrity_block() {}
