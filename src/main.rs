@@ -96,8 +96,6 @@ fn cli_encrypt_and_split<P: AsRef<Path>, Q: AsRef<Path>>(file_path: P,output_pat
 
     redis_client.store_metadata(file_data)
 
-
-
     */
     let mut unlocked_key = load_and_unlock_key(KEY_FILE_PATH, password)?;
     let (split_file_data, chunks_output_path) = split_file(file_path, output_path, &unlocked_key)?;

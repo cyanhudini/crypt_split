@@ -35,8 +35,9 @@ const CHUNK_SIZE: usize = 4096;
 pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(file_path: P, output_path: Q, key: &[u8; 64],) -> io::Result<(FileData, PathBuf)> {
     /* 
     /home/nils/Uni/BA/split_hash_crypt_distr/chunks/48372587ac04466dbb4a4e0578925c74
-     */
+    */
 
+    
     let binding = Uuid::new_v4().to_string();
     let pre_split = binding.split("-");
     let output_folder = pre_split.collect::<String>();
@@ -52,6 +53,7 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(file_path: P, output_path: Q, 
         .unwrap_or_else(|| String::from("unknown"));
     //TODO: Nonce pro Datei generieren
     let mut nonce_bytes = [0u8; 16];
+    //TODO: überlegen ob Nonce zufällig oder überhaupt benötigt wird
     OsRng.fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
     //TODO: zeroization hinzufügen -> https://crates.io/crates/zeroize
