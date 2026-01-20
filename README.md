@@ -1,3 +1,28 @@
+
+# Motivation
+
+Aufgrund stetig steigender Cyber Angriffe [Mad22] auf technische Infrastruktur, wird es immer wichtiger Wege zu finden eigene Daten zu sichern und vor fremden Augen zu schützen, hierbei
+spielen Cloud Dienste eine zentrale Rolle. Zwar vermarkten namhafte Cloud-Anbieter ihre Lösungen als vertraulich, indem sie die zu speichernden Daten verschlüsseln.
+Allerdings ergibt sich aus den Nutzungsbedingungen, dass diese Anbieter (z.B. Apple) immer einen Master- Key besitzen und damit potenziell persönliche und
+vertrauliche Informationen einsehen können. In dieser Bachelorarbeit wird eine Lösung präsentiert, die es ermöglicht, Daten gezielt in verschlüsselte Blöcke aufzuteilen
+und über mehrere Clouds hinweg zu verteilen. Dadurch wird eine Rekonstruktion dieser Dateien ohne eine Datenbank, die als Karte dient, unmäglich.
+
+Um dies zu erreichen, werden die zu sichernden Daten in 4-KiB große Blöcke aufgeteilt, nachdem sie mit einem AE-Schema verschlüsselt wurden.
+In diesem Fall verwenden wir RIV, da dieser als ”Nonce-Misuse” resistenter Algorithmus entworfen wurde. Zudem nutzen wir den Hashwert des Inhalts der resultierenden Dateien als Namen.
+
+Damit eine Ordnung hergestellt werden kann, die zur Rekonstruktion dieser Dateien genutzt wird, benutzen wir eine Eigenschaft der Blöcke einer Blockchain: An jeden Datenblock wird der Hash des vorigen Blockes angehängt.
+Den Hash des ersten Blocks schreiben wir in die Metadaten. Da wir davon ausgehen müssen, dass diese Blöcke zufällig über mehrere Ordner hinweg gespeichert werden, hängen wir zusätzlich zum eigentlichen Hashwert noch den Hashwert des Pfades an.
+Aufgrund der Charakteristik von Hashwerten, welche immer eine bestimmte Länge besitzen, wissen wir ab welcher Stelle wir den Pfad erwarten müssen.
+
+Anschließend werden der originale Dateiname und die zu den Datenblöcken zugehörigen Hashwerte als Key-Value-Paar in einer Redis-Datenbank gespeichert.
+Die Metadaten enthalten zusätzlich Informationen über die Nonce und eventuell eine Checksumme für die gesamte Datei, um diese nach vollständiger Rekonstruktion nochmals zu prüfen.
+
+Um den Schlüssel zu generieren, der anfangs zur Verschlüsselung genutzt wird, verwenden wir scrypt, eine Key-Derivation-Funktion. Dabei wird das Login-Passwort zur Datenbank genutzt.
+Außerdem muss die Sicherung des Schlüssels beachtet werden. Dies können wir durch eine ”Ver-XOR-ung” mit Passwort-Hash und Schlüssel erreichen.
+
+Standardmäßig verwenden wir den SHA-256-Algorithmus zum Erzeugen von Hashwerten, da dieser bis dato ein weit verbreiteter und sicherer Standard ist. Abschließend, wenn die Kapazitäten ausreichen, würde ein entsprechendes User-Interface programmiert werden, um die Nutzung des Programms angenehmer und eventuell plattformübergreifend zu gestalten.
+
+
 # crypt_split - Setup und Benutzung
 
 ## Voraussetzungen
