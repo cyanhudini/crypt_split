@@ -1,12 +1,12 @@
-use aes_siv::{
+use aes_gcm_siv::{
     aead::{Aead, KeyInit, OsRng},
-    Aes256SivAead, Nonce,
+    Aes256GcmSiv, Nonce,
 };
 
 use password_hash::rand_core::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::fs::{self, File};
+use std::{fmt::format, fs::{self, File}};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
@@ -52,12 +52,12 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(file_path: P, output_path: Q, 
         .and_then(|os| os.to_str().map(|s| s.to_string()))
         .unwrap_or_else(|| String::from("unknown"));
     //TODO: Nonce pro Datei generieren
-    let mut nonce_bytes = [0u8; 16];
+    let mut nonce_bytes = [0u8; 12];
     //TODO: überlegen ob Nonce zufällig oder überhaupt benötigt wird
     OsRng.fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
     //TODO: zeroization hinzufügen -> https://crates.io/crates/zeroize
-    let encrypted_all = encrypt_with_aes_siv(&input, nonce, key);
+    let encrypted_all = encrypt_with_aes_gcm_siv(&input, nonce, key);
 
     let mut chunks: Vec<FileChunkMetaData> = Vec::new();
     let file_size = encrypted_all.len();
@@ -115,9 +115,9 @@ pub fn split_file<P: AsRef<Path>, Q: AsRef<Path>>(file_path: P, output_path: Q, 
     }, output_folder_path))
 }
 // TODO: key als Paramter hinzufügen, Schlüssel durch KDF erzeugt werden, beim Starten des Programmes muss Passwort eingegeben werden
-fn encrypt_with_aes_siv(plain_data: &Vec<u8>, nonce: &Nonce, key: &[u8; 64]) -> Vec<u8> {
+fn encrypt_with_aes_gcm_siv(plain_data: &Vec<u8>, nonce: &Nonce, key: &[u8; 64]) -> Vec<u8> {
     //let key = Aes256SivAead::generate_key(&mut OsRng);
-    let cipher = Aes256SivAead::new_from_slice(key).expect("Falsche Länge des Keys");
+    let cipher = Aes256GcmSiv::new_from_slice(key).expect("Falsche Länge des Keys");
     //let nonce = Nonce::from_slice(b"any unique nonce");
     let encrypted_data = cipher
         .encrypt(nonce, plain_data.as_ref())
@@ -128,7 +128,7 @@ fn encrypt_with_aes_siv(plain_data: &Vec<u8>, nonce: &Nonce, key: &[u8; 64]) -> 
 }
 
 fn decrypt_with_aes_siv(encrypted_data: &[u8],nonce: &Nonce,key: &[u8; 64])-> Result<Vec<u8>, String>{
-    let cipher = Aes256SivAead::new_from_slice(key).expect("Invalid key length");
+    let cipher = Aes256GcmSiv::new_from_slice(key).expect("Invalid key length");
     cipher
         .decrypt(nonce, encrypted_data)
         .map_err(|e| format!("decryption failure: {}", e))
@@ -144,20 +144,18 @@ fn hash_encrypted_data(chunk_data: &String) -> String {
 }
 
 
-fn reconstruct_file<P: AsRef<Path>>(key : &[u8; 64], file_data: &FileData,chunks_folder: P,output_path: P){
+fn reconstruct_file<P: AsRef<Path>>(key : &[u8; 64], file_data: &FileData, chunks_folder: P,output_path: P){
     
     let encrypted_data: Vec<u8> = Vec::new();
-    /*
-    1. retrieve chunk metadata
-    2. for(i in chunks)
-            gehe all chunks durch und besorge Chunks von angegeben Ordner (später verschiedene Ordner)
-            speichere diese in einen gemeinsamen Ordner
-            lies chunks index 0
-            dann index 1
-    TODO: cloud::retrieve_chunks_from_folder() muss erst implementiert werden
-     */
-
     
+    for (i, chunk_meta) in file_data.chunks.iter().enumerate(){
+        let chunk_name = format!("{}_{}", chunk_meta.chunk_hash, chunk_meta.previous_chunk_hash);
+        //Pfad /chunk_folder/
+        if let Some(_) = &chunk_meta.cloud_path {
+            let full_path = chunks_folder.as_ref().join(chunk_name);
+            print!("{}", full_path.display());
+        }
+    }
 
 }
 

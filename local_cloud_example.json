@@ -1,0 +1,7 @@
+{
+    "local_cloud_paths" : [
+        "/home/nils/Uni/BA/split_hash_crypt_distr/test/cloud1",
+        "/home/nils/Uni/BA/split_hash_crypt_distr/test/cloud2",
+        "/home/nils/Uni/BA/split_hash_crypt_distr/test/cloud3"
+    ]
+}

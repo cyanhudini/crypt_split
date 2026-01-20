@@ -1,5 +1,4 @@
-
-use aes_siv::{aead::OsRng};
+use aes_gcm_siv::aead::OsRng;
 use password_hash::rand_core::RngCore;
 use scrypt::{scrypt, Params};
 use sha2::{Digest, Sha256};
@@ -17,14 +16,15 @@ const SCRYPT_P : u32 = 1;
 
 //TODO: https://crates.io/crates/secrecy hinzufügen
 
-pub fn scrypt_key_derivation(password: &str, salt : [u8;32]) -> ([u8; 64], [u8; 32]) {
+pub fn scrypt_key_derivation(password: &str, salt : [u8;32]) -> ([u8; 32], [u8; 32]) {
     //let salt = generate_salt();
     let params = Params::new(SCRYPT_N, SCRYPT_R, SCRYPT_P, 64).expect("Invalid scrypt params");
-    let mut key = Zeroizing::new([0u8; 64]);
+    let mut key = Zeroizing::new([0u8; 32]);
     //Zeroize is a generic wrapper type that impls Deref and DerefMut -> also muss "*" als Dereference verwendet werden
     scrypt(password.as_bytes(), &salt, &params, &mut *key).expect("scrypt derivation failed");
     (*key, salt)
 }
+
 //32 Byte langer Salt
 pub fn generate_salt() -> [u8; 32] {
     let mut salt = [0u8; 32];
@@ -32,13 +32,13 @@ pub fn generate_salt() -> [u8; 32] {
     salt
 }
 
-pub fn initialize_master_key(password: &str) -> ([u8; 64], [u8; 32]){
+pub fn initialize_master_key(password: &str) -> ([u8; 32], [u8; 32]){
     //derive key, hash_passwortd, dann zur sicherung ver-xor-ren
 
 
     let salt = generate_salt();
     let (key, salt) = scrypt_key_derivation(password, salt);
-    let password_hash= sha256_hash_password(password);
+    let password_hash = sha256_hash_password(password);
     let key_xor = xor_key_password_hash(&key, &password_hash);
 
     // TODO:zeroization einfügen,, nachdem key setup erfolgt ist
@@ -55,8 +55,8 @@ pub fn sha256_hash_password(password: &str) -> [u8; 32]{
 }
 
 
-pub fn xor_key_password_hash<'a>(key : &'a [u8; 64], password_hash: &'a [u8; 32]) -> [u8; 64]{
-    let mut key_xor = [0u8; 64];
+pub fn xor_key_password_hash<'a>(key : &'a [u8; 32], password_hash: &'a [u8; 32]) -> [u8; 32]{
+    let mut key_xor = [0u8; 32];
     for i in 0..64 {
         key_xor[i] = key[i] ^ password_hash[i % 32];
     }
@@ -73,12 +73,12 @@ pub fn store_key<P: AsRef<Path>>(salt: [u8; 32], key_xor : [u8; 64], key_file_pa
 }
 
 // xor_key daten und salt in [u8] speichern und xor-en
-pub fn load_and_unlock_key<P: AsRef<Path>>(key_file_path : P, password: &str) -> io::Result< [u8;64]>{
+pub fn load_and_unlock_key<P: AsRef<Path>>(key_file_path : P, password: &str) -> io::Result< [u8;32]>{
     let mut key_file = File::open(key_file_path)?;
     //vorerst read_exact um die erstem 32 Byte (salt) und dann die nächsten 64 Byte in die [u8] Arrays reinzulesen
     let mut salt =  [0u8; 32];
 
-    let mut xored_key = [0u8; 64];
+    let mut xored_key = [0u8; 32];
     
     key_file.read_exact(&mut salt)?;
     key_file.read_exact(&mut xored_key)?;

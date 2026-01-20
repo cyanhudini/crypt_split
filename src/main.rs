@@ -45,7 +45,7 @@ enum Commands {
         file_name: String,
     },
 
-    EncryptThenDistirbute, /*{
+    EncryptThenDistribute, /*{
 
                                #[arg(short, long)]
                                input_file: PathBuf,
@@ -161,15 +161,20 @@ fn distribute_file_chunks(chunks_path: &str, file_name: &str) -> io::Result<()> 
     Ok(())
 }
 
+fn cli_reconstruct(){}
+
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = CLI::parse();
     match cli.command {
-        Commands::Reconstruct => {
+        Commands::Reconstruct { } => {
             /*
                1A Benutzerinteraktion(List)/1B DeEncry(reconstruct()) -> 2 Benutzerinteraktion(authorize_with_password())
                3 KeyManagement(xor_passworthash_key()) -> DeEncry(reconstruct_file())
 
             */
+
+ 
         }
         Commands::Delete => {}
         Commands::Distr {
@@ -191,7 +196,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let password = authorize_with_password()?;
             let input_file = cli_encrypt_and_split(input_file, output_path, &password);
         }
-        Commands::EncryptThenDistirbute => {
+        Commands::EncryptThenDistribute => {
             /*  1 Benutzerinteraktion(passworteingabe) -> 2 authorize_with_password(password) -> 3 DeEncryp(split())
                 -> 4 Integrity(checksum_file()) ->5 Metadatenverwaltung(store_chunk_metadata())  ->  6 Metadatenverwaltung(store_checksum)
             */
