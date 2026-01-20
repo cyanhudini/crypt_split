@@ -72,6 +72,15 @@ pub fn store_key<P: AsRef<Path>>(salt: [u8; 32], key_xor : [u8; 64], key_file_pa
     Ok(())
 }
 
+
+//TODO: https://datatracker.ietf.org/doc/html/rfc3394
+// https://datatracker.ietf.org/doc/html/rfc5649
+// eventuell das einfache Ver-XOR-en des Keys mit Passwort durch KEy Wrapping ALgorithmus ersetzen
+pub fn wrap_key(){}
+
+pub fn unwrap_key(){}
+
+
 // xor_key daten und salt in [u8] speichern und xor-en
 pub fn load_and_unlock_key<P: AsRef<Path>>(key_file_path : P, password: &str) -> io::Result< [u8;32]>{
     let mut key_file = File::open(key_file_path)?;
