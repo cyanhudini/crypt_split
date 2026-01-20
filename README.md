@@ -97,10 +97,16 @@ Die ausfühhrbare Datei befindet sich unter `target/release/crypt_split`.
 
 ## Benutzung
 
+Um eine Überishct aller Befehle zu erhalten, muss lediglich das Programm über das Terminal ohne jegliche Befehle gestartet werden oder mittels der Option -h:
+
+```bash
+./crypt_split -h
+```
+
 ### Grundlegende Befehle
 
 ```bash
-crypt_split <BEFEHL> [OPTIONEN]
+./crypt_split <BEFEHL> [OPTIONEN]
 ```
 
 ### Verfügbare Befehle
@@ -110,7 +116,7 @@ crypt_split <BEFEHL> [OPTIONEN]
 Initialisiert einen neuen Master-Schlüssel. Dieser Schritt muss vor der ersten Nutzung ausgeführt werden.
 
 ```bash
-crypt_split init
+./crypt_split init
 ```
 
 Dieses Passwort wird zum Entsperren des Schlüssel verwendet. Falls dieses Passwort verloren geht, gehen somit auch die gesichterten Daten verloren.
@@ -120,7 +126,7 @@ Dieses Passwort wird zum Entsperren des Schlüssel verwendet. Falls dieses Passw
 Verschlüsselt eine Datei und teilt sie in Chunks auf:
 
 ```bash
-crypt_split encrypt -i <EINGABEDATEI> [-o <AUSGABEPFAD>]
+./crypt_split encrypt -i <EINGABEDATEI> [-o <AUSGABEPFAD>]
 ```
 
 Optionen:
@@ -130,7 +136,7 @@ Optionen:
 Beispiel:
 
 ```bash
-crypt_split encrypt -i dokument.pdf -o ./chunks
+./crypt_split encrypt -i dokument.pdf -o ./chunks
 ```
 
 #### distr - Chunks verteilen
@@ -138,7 +144,7 @@ crypt_split encrypt -i dokument.pdf -o ./chunks
 Verteilt die verschlüsselten Chunks auf die konfigurierten Speicherorte:
 
 ```bash
-crypt_split distr -c <CHUNKS_PFAD> -f <DATEINAME>
+./crypt_split distr -c <CHUNKS_PFAD> -f <DATEINAME>
 ```
 
 Optionen:
@@ -148,7 +154,7 @@ Optionen:
 Beispiel:
 
 ```bash
-crypt_split distr -c ./chunks -f dokument.pdf
+./crypt_split distr -c ./chunks -f dokument.pdf
 ```
 
 #### encrypt-then-distribute (WIP)
@@ -157,7 +163,7 @@ Eine Verkettung von Encrypt und Distribute, damit beide Befehle nicht einzeln ei
 
 
 ```bash
-crypt_split encrypt-then-distribute 
+./crypt_split encrypt-then-distribute 
 ```
 
 #### list - Gespeicherte Dateien auflisten (WIP)
@@ -165,7 +171,7 @@ crypt_split encrypt-then-distribute
 Listet alle in der Datenbank gespeicherten Dateien auf:
 
 ```bash
-crypt_split list
+./crypt_split list
 ```
 
 #### reconstruct - Datei wiederherstellen (WIP)
@@ -173,7 +179,7 @@ crypt_split list
 Rekonstruiert eine zuvor verschlüsselte und verteilte Datei:
 
 ```bash
-crypt_split reconstruct
+./crypt_split reconstruct
 ```
 
 #### delete - Datei löschen (WIP)
@@ -181,7 +187,7 @@ crypt_split reconstruct
 Löscht eine gespeicherte Datei und ihre Chunks:
 
 ```bash
-crypt_split delete
+./crypt_split delete
 ```
 
 ## Fehlerbehebung
