@@ -1,17 +1,17 @@
-use crate::{key_management::load_and_unlock_key, split::split_file};
+use crate::cloud::disitribute_file_chunks;
+use crate::split::{reconstruct_file, split_file};
 use clap::{Parser, Subcommand};
+use dotenv;
 use redis::{self};
 use serde::Deserialize;
 use std::fs;
 use std::io::{self, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use zeroize::Zeroize;
-use dotenv;
 mod cloud;
 mod key_management;
 mod redis_db;
 mod split;
-
 
 const KEY_FILE_PATH: &str = ".key_file";
 
@@ -45,16 +45,27 @@ enum Commands {
         file_name: String,
     },
 
-    EncryptThenDistribute, /*{
+    EncryptThenDistribute {
+        #[arg(short, long)]
+        input_file: String,
+        #[arg(short, long)]
+        file_name: String,
+        #[arg(short, long, default_value = "./chunks")]
+        output_path: String,
+    },
+    /*
+         arg(short, long)]
+        input_file: PathBuf,
+        #[arg(short, long, default_value="./chunks")]
+        output_path : PathBuf,
 
-                               #[arg(short, long)]
-                               input_file: PathBuf,
-                               #[arg(short, long, default_value="./chunks")]
-                               output_path : PathBuf,
-
-                           }*/
-
-    Reconstruct,
+    }*/
+    Reconstruct {
+        #[arg(short, long)]
+        file_name: String,
+        #[arg(short, long, default_value = "./output")]
+        output_path: PathBuf,
+    },
 
     List,
 
@@ -68,9 +79,15 @@ enum Commands {
 */
 fn start_init_key() -> io::Result<()> {
     //let password = "12345";
+    if Path::new(KEY_FILE_PATH).exists() {
+        //wenn leer, fdragen ob neu initaliseren
+        print!("Existiert bereits");
+        return Ok(());
+    }
+
     let password = authorize_with_password()?;
-    let (key_xor, salt) = key_management::initialize_master_key(&password);
-    key_management::store_key(salt, key_xor, KEY_FILE_PATH)?;
+    println!("Passwort");
+    let s = key_management::init_kek_salt(&password, KEY_FILE_PATH)?;
     Ok(())
 }
 
@@ -87,36 +104,60 @@ fn authorize_with_password() -> io::Result<String> {
 }
 
 // EIngangspunkt der CLI fürs Splitten/Verteilen
-fn cli_encrypt_and_split<P: AsRef<Path>, Q: AsRef<Path>>(file_path: P,output_path: Q,password: &str,) -> io::Result<()> {
-    //TODO: load_key() erst implementieren
-    /*
-    key= load_and_unlock_key()
-    file_data = split_file(input_file, output, key)
-    let redis_client = start_redis_client()
+fn cli_encrypt_and_split<P: AsRef<Path>>(file_path: P,output_path: P,password: &str,) -> io::Result<PathBuf> {
+    let mut unlocked_key = key_management::load_kek_salt(password, KEY_FILE_PATH)?;
+    //data encryption key wird für jede Datei neu generiert
+    let mut dek = key_management::generate_dek();
 
-    redis_client.store_metadata(file_data)
-
-    */
-    let mut unlocked_key = load_and_unlock_key(KEY_FILE_PATH, password)?;
-    let (split_file_data, chunks_output_path) = split_file(file_path, output_path, &unlocked_key)?;
-    print!("Output Pfad der Chunks: {:?}", chunks_output_path);
-    //sobald der entsperrte Schlüssel nicht mehr gebraucht ist -> zeroize, aus Arbeitsspeicher entfernen
+    let (mut split_file_data, chunks_output_path) = split_file(file_path, output_path, &dek)?;
+    println!("Output Pfad der Chunks: {:?}", chunks_output_path);
+    let wrapped_dek = key_management::wrap_dek_key(&unlocked_key, &dek)?;
+    split_file_data.wrapped_dek = Some(hex::encode(&wrapped_dek));
     unlocked_key.zeroize();
+    dek.zeroize();
     let mut redis_client = redis_db::RedisClient::create_from_env()
-        .map_err(|_| io::Error::new(ErrorKind::Other, "Fehler beim Erstellen des RedisCLients"))?;
+        .map_err(|_| io::Error::new(ErrorKind::Other, "Fehler beim Erstellen des RedisClients"))?;
     redis_client
         .store_chunk_metadata(&split_file_data)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
-    Ok(())
+    Ok(chunks_output_path)
 }
 
 //TODO: Verteilung muss erst implementiert werden
-fn encrypt_and_distribute() {}
+fn cli_encrypt_and_distribute(
+    file_path: &str,
+    file_name: &str,
+    output_path: &str,
+    password: &str,
+) -> io::Result<()> {
+    let chunks_path = cli_encrypt_and_split(file_path, output_path, password)?;
+    let chunks_path_str = chunks_path.to_string_lossy();
+    cli_distribute_file_chunks(&chunks_path_str, file_name)?;
+    Ok(())
+}
 
-fn list_all_stored_files() {}
+fn list_all_stored_files() -> io::Result<()> {
+    let mut redis_client = redis_db::RedisClient::create_from_env()
+        .map_err(|_| io::Error::new(ErrorKind::Other, "Fehler beim Erstellen des RedisClients"))?;
 
-fn distribute_file_chunks(chunks_path: &str, file_name: &str) -> io::Result<()> {
+    let files = redis_client
+        .list_all_files()
+        .map_err(|e| io::Error::new(ErrorKind::Other, format!("Redis Fehler: {}", e)))?;
+
+    if files.is_empty() {
+        println!("Keine Dateien in der Datenbank gefunden.");
+    } else {
+        println!("Gespeicherte Dateien ({}):", files.len());
+        for (_, file_name) in files.iter().enumerate() {
+            println!("{}", file_name);
+        }
+    }
+
+    Ok(())
+}
+
+fn cli_distribute_file_chunks(chunks_path: &str, file_name: &str) -> io::Result<()> {
     //cloud::disitribute_file_chunks()#
     let mut redis_client = redis_db::RedisClient::create_from_env()
         .map_err(|e| io::Error::new(ErrorKind::Other, "Fehler beim Erstellen des RedisCLients"))?;
@@ -128,7 +169,12 @@ fn distribute_file_chunks(chunks_path: &str, file_name: &str) -> io::Result<()> 
                 "Fehler beim Abrufen der Dateimetadaten aus Redis",
             )
         })?
-        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Datei nicht in der Datenbank gefunden"))?;
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "Datei nicht in der Datenbank gefunden",
+            )
+        })?;
     // read env variable for config path
     /*
     example:
@@ -141,8 +187,7 @@ fn distribute_file_chunks(chunks_path: &str, file_name: &str) -> io::Result<()> 
     }
     de-serialize json file to Vec<String>
      */
-    let config_path = dotenv::var("CONFIG_PATH")
-        .unwrap_or_else(|_| "local_cloud.json".to_string());
+    let config_path = dotenv::var("CONFIG_PATH").unwrap_or_else(|_| "local_cloud.json".to_string());
 
     //TODO: wenn Datei bereits existiert in Db soll Fehler ausgegeben werden, da sonst beim Distributing die Datei nicht gefunden wird
     // oder überschreiben?
@@ -156,50 +201,83 @@ fn distribute_file_chunks(chunks_path: &str, file_name: &str) -> io::Result<()> 
     // Update der Chunk-Metadaten in Redis mit den neuen cloud_paths
     redis_client
         .store_chunk_metadata(&file_data_option)
-        .map_err(|e| io::Error::new(ErrorKind::Other, format!("Fehler beim Aktualisieren der Metadaten in Redis: {}", e)))?;
-    
+        .map_err(|e| {
+            io::Error::new(
+                ErrorKind::Other,
+                format!("Fehler beim Aktualisieren der Metadaten in Redis: {}", e),
+            )
+        })?;
+
     Ok(())
 }
 
-fn cli_reconstruct(){}
 
+fn cli_reconstruct(file_name: &str, output_path: &Path, password: &str) -> io::Result<PathBuf> {
+    let mut redis_client = redis_db::RedisClient::create_from_env()
+        .map_err(|_| io::Error::new(ErrorKind::Other, "Fehler beim Erstellen des RedisClients"))?;
+
+    let file_data = redis_client
+        .retrieve_chunk_metadata(file_name)
+        .map_err(|e| io::Error::new(ErrorKind::Other, format!("Redis Fehler: {}", e)))?
+        .ok_or_else(|| {
+            io::Error::new(ErrorKind::NotFound, "Datei nicht in der Datenbank gefunden")
+        })?;
+
+    let temp_chunks_folder = output_path.join(".tmp_chunks");
+    cloud::collect_chunks_to_folder(&file_data.chunks, &temp_chunks_folder)?;
+    // load_kek -> load_dek -> unwrap_dek_with_kek()
+    let mut kek = key_management::load_kek_salt(password, KEY_FILE_PATH)?;
+    //as_ref() ist die kostengünstigere variante zu From/Into
+    let wrapped_dek_h = file_data
+        .wrapped_dek
+        .as_ref()
+        .expect("Fehler beim Laden des Wrapped DEK");
+    let wrapped_dek = hex::decode(wrapped_dek_h)
+        .map_err(|e| io::Error::new(ErrorKind::InvalidData, format!("Hex decode Fehler: {}", e)))?;
+
+    let mut dek = key_management::unwrap_key(&kek, &wrapped_dek)?;
+    kek.zeroize();
+    fs::create_dir_all(output_path)?;
+
+    let output_file = reconstruct_file(&dek, &file_data, &temp_chunks_folder, output_path)?;
+    dek.zeroize();
+
+    fs::remove_dir_all(&temp_chunks_folder)?;
+
+    Ok(output_file)
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = CLI::parse();
     match cli.command {
-        Commands::Reconstruct { } => {
-            /*
-               1A Benutzerinteraktion(List)/1B DeEncry(reconstruct()) -> 2 Benutzerinteraktion(authorize_with_password())
-               3 KeyManagement(xor_passworthash_key()) -> DeEncry(reconstruct_file())
-
-            */
-
- 
+        Commands::Reconstruct {file_name,output_path,} => {
+            let password = authorize_with_password()?;
+            let output_file = cli_reconstruct(&file_name, &output_path, &password)?;
+            println!("Datei rekonstruiert: {:?}", output_file);
         }
         Commands::Delete => {}
         Commands::Distr {
             chunks_path,
             file_name,
         } => {
-            distribute_file_chunks(&chunks_path, &file_name)?;
+            cli_distribute_file_chunks(&chunks_path, &file_name)?;
             /*
             1 Pfad angeben -> 2 Verteilen
              */
         }
-        Commands::Encrypt {
-            input_file,
-            output_path,
-        } => {
-            /*  1 Benutzerinteraktion(passworteingabe) -> 2 authorize_with_password(password) -> 3 KeyManagement(xor_passworthash_key())
-                -> 4 DeEncryp(split()) -> 4 Integrity(checksum_file())
-            */
+        Commands::Encrypt {input_file,output_path,} => {
             let password = authorize_with_password()?;
-            let input_file = cli_encrypt_and_split(input_file, output_path, &password);
+            let chunks_path = cli_encrypt_and_split(input_file, output_path, &password)?;
+            println!("Chunks gespeichert in: {:?}", chunks_path);
         }
-        Commands::EncryptThenDistribute => {
+        Commands::EncryptThenDistribute {input_file,file_name,output_path,
+        } => {
             /*  1 Benutzerinteraktion(passworteingabe) -> 2 authorize_with_password(password) -> 3 DeEncryp(split())
                 -> 4 Integrity(checksum_file()) ->5 Metadatenverwaltung(store_chunk_metadata())  ->  6 Metadatenverwaltung(store_checksum)
             */
+            let password = authorize_with_password()?;
+            let input_file =
+                cli_encrypt_and_distribute(&input_file, &file_name, &output_path, &password)?;
         }
         Commands::Init => {
             /*
@@ -207,12 +285,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             */
             start_init_key()?;
         }
-        Commands::List => {}
+        Commands::List => {
+            list_all_stored_files()?;
+        }
     }
 
     Ok(())
 }
-
 
 #[cfg(test)]
 mod test {
